@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <string_view>
+#include <array>
 
 #include <bid_conf.h>
 #include <bid_functions.h>
