@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <doctest/all>
 #include <decimal.hpp>
-#include <stdfloat>
 
 #define TRACE std::cerr
 #define uint128_t __uint128_t
