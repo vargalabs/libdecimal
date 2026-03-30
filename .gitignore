@@ -11,12 +11,6 @@
 *.gch
 *.pch
 
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
 # Compiled Dynamic libraries
 *.so
 *.dylib
@@ -37,5 +31,37 @@
 *.out
 *.app
 
-# debug information files
-*.dwo
+# data
+*.h5
+*.gz
+*.csv
+
+# Other
+*.prof
+*.aux
+*.json
+docs/html/
+data
+.vscode/
+.cache/
+compile_commands.json
+
+src/iex2h5
+
+build/
+.venv
+site/
+
+/overrides/
+/badges/
+/assets/
+/download-demo/
+/search/
+/spec/
+/.nojekyll
+/*.html
+/*.xml
+
+include/licenses.hpp
+
+examples/python/__pycache__/
