@@ -1,0 +1,95 @@
+site_name: VargaLABS
+site_url: https://steven-varga.ca
+site_description: libdecimal — Deterministic Base-10 Arithmetic for In-House Production Systems
+site_author: Steven Varga
+copyright: Steven Varga
+docs_dir: docs
+nav:
+  - Overview: index.md
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  features:
+    #- navigation.instant <- messes up mathjax, keep it disabled!
+    - search.suggest
+    - content.code.copy
+    - content.tooltips
+    - content.tabs.link
+  icon:
+  admonition:
+  palette:
+    - scheme: solarized
+      primary: orange
+      toggle:
+        icon: moon
+        name: Switch to dark mode
+    - scheme: slate
+      primary: orange
+      toggle:
+        icon: sun
+        name: Switch to light mode
+extra:
+  homepage: https://steven-varga.ca/
+  social:
+    - icon: material/whatsapp
+      link: https://wa.me/16475611829
+    - icon: material/email-fast
+      link: mailto:steven@vargaconsulting.ca
+    - icon: material/twitter
+      link: https://x.com/vargaconsulting
+    - icon: material/linkedin
+      link: https://www.linkedin.com/in/steven-varga-04224a19/
+    - icon: material/github 
+      link: https://github.com/vargalabs
+
+  analytics:
+    provider: google
+    property: 
+markdown_extensions:
+  - md_in_html
+  - admonition
+  - attr_list
+  - tables
+  - footnotes
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg  
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.blocks.caption
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde  
+  - pymdownx.critic
+  - pymdownx.keys
+    
+extra_javascript:
+  - javascripts/mathjax.js
+  - javascripts/mathjax-tex-mml-chtml.js
+  - javascripts/tailwind.js
+  - javascripts/tw-config.js
+  - javascripts/asciinema-player.min.js
+  - javascripts/alpine.js
+  - javascripts/popper.js
+  - javascripts/tippy.js
+
+extra_css:
+  - styles/asciinema-player.css
+  - styles/asciinema.css
+  - styles/animate.css
+  - styles/custom.css
+  - styles/mobile.css
+  - styles/socials.css
+  - styles/background.css
+  - styles/blog.css
