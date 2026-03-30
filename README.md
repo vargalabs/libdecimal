@@ -6,6 +6,13 @@
 [![GitHub release](https://img.shields.io/github/v/release/vargalabs/libdecimal.svg)](https://github.com/vargalabs/libdecimal/releases)
 [![Documentation](https://img.shields.io/badge/docs-stable-blue)](https://vargalabs.github.io/libdecimal)
 
+## Build Matrix
+
+| OS / Compiler | GCC 13      | GCC 14      | GCC 15      | Clang 17      | Clang 18      | Clang 19      |Clang 20       |
+|---------------|-------------|-------------|-------------|---------------|---------------|---------------|---------------|
+| Ubuntu 22.04  |![gcc13][200]|![gcc14][201]|![gcc15][202]|![clang17][250]|![clang18][251]|![clang19][252]|![clang20][253]|
+| Ubuntu 24.04  |![gcc13][300]|![gcc14][301]|![gcc15][302]|![clang17][350]|![clang18][351]|![clang19][352]|![clang20][353]|
+
 ## libdecimal — Deterministic Decimal Arithmetic Built on Intel LIBBID
 **libdecimal** is a **header-only, production-grade decimal arithmetic library** built for systems where correctness is not negotiable. If your P&L depends on the last digit — you’re in the right place. If your connectivity stack (e.g. Interactive Brokers) already relies on Intel LIBBID — this fits naturally. This is not a “numeric playground” — it’s infrastructure. For
 
@@ -17,9 +24,10 @@
 ## Why This Exists
 
 * Intel LIBBID is already in your stack — but the API is painful
+* The build system failed for you, we had it covered
 * Clean, modern C++ layer over LIBBID (no wrapper spaghetti)
 * Exact BID binary representation for interop & persistence
-* No Boost.Decimal overhead or design baggage
+* You are looking for an alternative to Boost.Decimal
 
 **You get:**
 
@@ -29,7 +37,6 @@
 * Precision suitable for financial systems
 * Compile-time friendly (constexpr where it matters)
 * Clean integration with modern C++ (C++20/23)
-* Zero dependencies
 
 ## Who This Is For
 
@@ -47,12 +54,7 @@ If you’re building:
 * blockchain / DeFi protocols
 * risk or pricing systems
 
-## Build Matrix
 
-| OS / Compiler | GCC 13      | GCC 14      | GCC 15      | Clang 17      | Clang 18      | Clang 19      |Clang 20       |
-|---------------|-------------|-------------|-------------|---------------|---------------|---------------|---------------|
-| Ubuntu 22.04  |![gcc13][200]|![gcc14][201]|![gcc15][202]|![clang17][250]|![clang18][251]|![clang19][252]|![clang20][253]|
-| Ubuntu 24.04  |![gcc13][300]|![gcc14][301]|![gcc15][302]|![clang17][350]|![clang18][351]|![clang19][352]|![clang20][353]|
 
 ## Development
 
