@@ -43,7 +43,9 @@
 
 // Fix system header issue on Sun solaris and define required type by ourselves
 #if !defined(_WCHAR_T) && !defined(_WCHAR_T_DEFINED) && !defined(__QNX__)
-typedef int   wchar_t;
+   #ifndef __cplusplus
+      typedef int   wchar_t;
+   #endif
 #endif
 
 
