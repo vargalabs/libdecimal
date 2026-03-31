@@ -9,6 +9,8 @@ nav:
   - Conversion: conversion.md
   - Print: display.md
   - Operations: operations.md
+  - Constants: constants.md
+  - Issues: issues.md
 
 theme:
   name: material

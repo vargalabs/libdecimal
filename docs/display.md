@@ -134,6 +134,9 @@ The library provides consistent, human-readable formatting across  :material-dec
     |--------------------|-----------------------------------------------|
     | Float inputs       | May expand (e.g. `"0.1000000"`)               |
     | Zero normalization | Always rendered as `"0"`                      |
+    | Invalid input      | Always mapped to NaN                          |
+    | Scientific Notation| Exponent is off by 1, see: `test/thirdparty.cpp` |
+    
 
 
 <div class="clear-both"></div>
