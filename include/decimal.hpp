@@ -10,8 +10,8 @@
 #include <cstdint>
 #include <limits>
 #include <string_view>
+#include <type_traits>
 #include <array>
-
 #include <bid_conf.h>
 #include <bid_functions.h>
 #include <dfp754.h>
@@ -382,21 +382,21 @@ namespace math {
 #undef sigma_stream_op
 
 namespace std {
-    template <class T>
-    struct formatter<math::decimal_t<T>> {
-        template<typename ctx_t>
-        constexpr auto parse(ctx_t& ctx) const {
-            return ctx.begin();
+    template <typename integral_t>
+    struct formatter<math::decimal_t<integral_t>, char> {
+        formatter<std::string_view, char> delegate;
+
+        constexpr auto parse(std::format_parse_context& ctx) {
+            return delegate.parse(ctx);
         }
 
-        template <typename ctx_t>
-        auto format(const math::decimal_t<T>& dec, ctx_t& ctx) const {
-            return std::format_to(ctx.out(), "{}", static_cast<std::string>(dec));
+        template <typename format_context_t>
+        auto format(const math::decimal_t<integral_t>& value, format_context_t& ctx) const {
+            const std::string text = static_cast<std::string>(value);
+            return delegate.format(std::string_view{text}, ctx);
         }
     };
-} // namespace std
-
-
+}
 namespace math {
     /*
     intel_bid_prefixes := {__bid32_ __bid64_ __bid128_}
