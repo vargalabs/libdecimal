@@ -225,3 +225,56 @@ TEST_CASE("registered unary math functions compile for decimal32") {
     (void)math::abs(test::dec32_t{"-1"});
     CHECK(true);
 }
+
+TEST_SUITE("transcendental functions::domain and parity") {
+    TEST_CASE("sqrt negative input produces nan") {
+        CHECK(static_cast<std::string>(math::sqrt(test::dec32_t{"-1"})) == "nan");
+        CHECK(static_cast<std::string>(math::sqrt(test::dec64_t{"-1"})) == "nan");
+        CHECK(static_cast<std::string>(math::sqrt(test::dec128_t{"-1"})) == "nan");
+    }
+
+    TEST_CASE("log domain boundaries are explicit") {
+        CHECK(static_cast<std::string>(math::log(test::dec32_t{"0"})) == "-inf");
+        CHECK(static_cast<std::string>(math::log(test::dec64_t{"0"})) == "-inf");
+        CHECK(static_cast<std::string>(math::log(test::dec128_t{"0"})) == "-inf");
+
+        CHECK(static_cast<std::string>(math::log(test::dec32_t{"-1"})) == "nan");
+        CHECK(static_cast<std::string>(math::log(test::dec64_t{"-1"})) == "nan");
+        CHECK(static_cast<std::string>(math::log(test::dec128_t{"-1"})) == "nan");
+    }
+
+    TEST_CASE("trigonometric parity identities") {
+        const test::dec32_t x32{"0.5"};
+        CHECK(test::as_double(math::sin(-x32)) == doctest::Approx(-test::as_double(math::sin(x32))).epsilon(1e-6));
+        CHECK(test::as_double(math::cos(-x32)) == doctest::Approx( test::as_double(math::cos(x32))).epsilon(1e-6));
+
+        const test::dec64_t x64{"0.5"};
+        CHECK(test::as_long_double(math::sin(-x64)) == doctest::Approx(-test::as_long_double(math::sin(x64))).epsilon(1e-12));
+        CHECK(test::as_long_double(math::cos(-x64)) == doctest::Approx( test::as_long_double(math::cos(x64))).epsilon(1e-12));
+
+        const test::dec128_t x128{"0.5"};
+        CHECK(test::as_long_double(math::sin(-x128)) == doctest::Approx(-test::as_long_double(math::sin(x128))).epsilon(1e-12));
+        CHECK(test::as_long_double(math::cos(-x128)) == doctest::Approx( test::as_long_double(math::cos(x128))).epsilon(1e-12));
+    }
+
+    TEST_CASE("constant-based trig checkpoints") {
+        CHECK(test::as_double(math::sin(math::constants<std::uint32_t>::half_pi)) == doctest::Approx(1.0).epsilon(1e-5));
+        CHECK(test::as_long_double(math::sin(math::constants<std::uint64_t>::half_pi)) == doctest::Approx(1.0L).epsilon(1e-12));
+        CHECK(test::as_long_double(math::sin(math::constants<math::uint128_t>::half_pi)) == doctest::Approx(1.0L).epsilon(1e-12));
+
+        CHECK(test::as_double(math::cos(math::constants<std::uint32_t>::pi)) == doctest::Approx(-1.0).epsilon(1e-5));
+        CHECK(test::as_long_double(math::cos(math::constants<std::uint64_t>::pi)) == doctest::Approx(-1.0L).epsilon(1e-12));
+        CHECK(test::as_long_double(math::cos(math::constants<math::uint128_t>::pi)) == doctest::Approx(-1.0L).epsilon(1e-12));
+    }
+
+    TEST_CASE("restricted inverse pair checks") {
+        const test::dec32_t x32{"0.5"};
+        CHECK(test::as_double(math::log(math::exp(x32))) == doctest::Approx(0.5).epsilon(1e-5));
+
+        const test::dec64_t x64{"0.5"};
+        CHECK(test::as_long_double(math::log(math::exp(x64))) == doctest::Approx(0.5L).epsilon(1e-12));
+
+        const test::dec128_t x128{"0.5"};
+        CHECK(test::as_long_double(math::log(math::exp(x128))) == doctest::Approx(0.5L).epsilon(1e-12));
+    }
+}

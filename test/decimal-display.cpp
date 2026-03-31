@@ -220,3 +220,47 @@ TEST_SUITE("print::regression_sentinels") {
         CHECK(s.find('E') == std::string::npos);
     }
 }
+
+TEST_SUITE("print::extended formatting") {
+    TEST_CASE("formats negative finite values") {
+        CHECK(test::as_string(test::dec32_t{"-123.45"}) == "-123.45");
+        CHECK(test::as_string(test::dec64_t{"-123.45"}) == "-123.45");
+        CHECK(test::as_string(test::dec128_t{"-123.45"}) == "-123.45");
+    }
+
+    TEST_CASE("formats very small finite values without scientific notation") {
+        CHECK(test::as_string(test::dec32_t{"0.005"}) == "0.005");
+        CHECK(test::as_string(test::dec64_t{"0.0000000000000001"}) == "0.0000000000000001");
+        CHECK(test::as_string(test::dec128_t{"0.0000000000000000000000000000000001"}) ==
+              "0.0000000000000000000000000000000001");
+    }
+
+    TEST_CASE("std::format basic formatting") {
+        CHECK(std::format("{}", test::dec32_t{"12.5"}) == "12.5");
+        CHECK(std::format("{}", test::dec64_t{"12.5"}) == "12.5");
+        CHECK(std::format("{}", test::dec128_t{"12.5"}) == "12.5");
+    }
+
+    TEST_CASE("std::format width and alignment") {
+        CHECK(std::format("{:>10}", test::dec32_t{"12.5"}) == "      12.5");
+        CHECK(std::format("{:<10}", test::dec64_t{"12.5"}) == "12.5      ");
+        CHECK(std::format("{:*^10}", test::dec128_t{"12.5"}) == "***12.5***");
+    }
+
+    TEST_CASE("format string roundtrip is stable") {
+        const auto a = std::format("{}", test::dec32_t{"123.45"});
+        const auto b = std::format("{}", test::dec64_t{"123.45"});
+        const auto c = std::format("{}", test::dec128_t{"123.45"});
+
+        CHECK(test::as_string(test::dec32_t{a}) == a);
+        CHECK(test::as_string(test::dec64_t{b}) == b);
+        CHECK(test::as_string(test::dec128_t{c}) == c);
+    }
+    TEST_CASE("printout") {
+        using namespace math::literals;
+        std::cout << std::format("{:>10}", 12.345_dec ) << std::endl;
+        std::cout << std::format("{:<5}", 12.345_dec32 ) << std::endl;
+        std::cout << std::format("{}", 12.345_dec64 ) << std::endl;
+        std::cout << std::format("{}", 12.345_dec128 ) << std::endl;
+    }
+}

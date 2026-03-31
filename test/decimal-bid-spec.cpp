@@ -387,3 +387,77 @@ TEST_SUITE("known gaps / regression sentinels") {
         CHECK(math::bid::display_bid64(0x7c00000000000000ull) == "nan");
     }
 }
+
+
+TEST_SUITE("comparison operators::special values") {
+    TEST_CASE("signed zero compares equal") {
+        CHECK(test::dec32_t{"0"} == test::dec32_t{"-0"});
+        CHECK(test::dec64_t{"0"} == test::dec64_t{"-0"});
+        CHECK(test::dec128_t{"0"} == test::dec128_t{"-0"});
+
+        CHECK(test::dec32_t{"0"} <= test::dec32_t{"-0"});
+        CHECK(test::dec64_t{"0"} >= test::dec64_t{"-0"});
+    }
+
+    TEST_CASE("nan is unordered and not equal to itself") {
+        const auto nan32 = math::constants<std::uint32_t>::nan;
+        const auto nan64 = math::constants<std::uint64_t>::nan;
+        const auto nan128 = math::constants<math::uint128_t>::nan;
+
+        CHECK(nan32 != nan32);
+        CHECK_FALSE(nan32 == nan32);
+        CHECK_FALSE(nan32 < nan32);
+        CHECK_FALSE(nan32 > nan32);
+
+        CHECK(nan64 != nan64);
+        CHECK_FALSE(nan64 == nan64);
+        CHECK_FALSE(nan64 < nan64);
+        CHECK_FALSE(nan64 > nan64);
+
+        CHECK(nan128 != nan128);
+        CHECK_FALSE(nan128 == nan128);
+        CHECK_FALSE(nan128 < nan128);
+        CHECK_FALSE(nan128 > nan128);
+    }
+
+    TEST_CASE("infinities compare as expected") {
+        const auto p32 = math::constants<std::uint32_t>::inf;
+        const auto n32 = test::dec32_t{"-inf"};
+        const auto x32 = test::dec32_t{"1"};
+
+        CHECK(p32 > x32);
+        CHECK(n32 < x32);
+        CHECK(p32 == p32);
+        CHECK(n32 == n32);
+        CHECK(p32 != n32);
+
+        const auto p64 = math::constants<std::uint64_t>::inf;
+        const auto n64 = test::dec64_t{"-inf"};
+        const auto x64 = test::dec64_t{"1"};
+
+        CHECK(p64 > x64);
+        CHECK(n64 < x64);
+        CHECK(p64 == p64);
+        CHECK(n64 == n64);
+        CHECK(p64 != n64);
+    }
+}
+
+TEST_SUITE("utilities::special values") {
+    TEST_CASE("math::decompose handles zero canonically") {
+        const auto [signbit_32, mantissa_32, exponent_32] = math::decompose(test::dec32_t{"0"});
+        CHECK(signbit_32 == false);
+        CHECK(mantissa_32 == 0u);
+        CHECK(exponent_32 <= 0);
+
+        const auto [signbit_64, mantissa_64, exponent_64] = math::decompose(test::dec64_t{"0"});
+        CHECK(signbit_64 == false);
+        CHECK(mantissa_64 == 0ull);
+        CHECK(exponent_64 <= 0);
+    }
+
+    TEST_CASE("math::mantissa of zero is zero") {
+        CHECK(math::mantissa(test::dec32_t{"0"}) == 0u);
+        CHECK(math::mantissa(test::dec64_t{"0"}) == 0ull);
+    }
+}

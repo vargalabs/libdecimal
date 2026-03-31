@@ -1,6 +1,7 @@
 /* This file is part of the LIBDECIMAL project and is licensed under the MIT License.
  * Copyright © 2025–2026 Varga Labs, Toronto, ON, Canada 🇨🇦 Contact: info@vargalabs.com */
 
+#include <cstdint>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/all>
 
@@ -152,4 +153,28 @@ TEST_CASE("math::constants<BID_UINT128>") {
     check_constant_eq<BID_UINT128>("quarter_pi",   "0.7853981633974483096156608458198757");
     check_constant_eq<BID_UINT128>("cube_root_2",  "1.2599210498948731647672106072782284");
     check_constant_eq<BID_UINT128>("cube_root_3",  "1.4422495703074083823216383107801096");
+}
+
+TEST_CASE("math::constants special-value semantics") {
+    {
+        using C = math::constants<uint32_t>;
+        CHECK(C::nan != C::nan);
+        CHECK(C::inf == C::inf);
+        CHECK(C::inf > C::one);
+        CHECK(math::decimal_t<uint32_t>{"-inf"} < C::zero);
+    }
+    {
+        using C = math::constants<uint64_t>;
+        CHECK(C::nan != C::nan);
+        CHECK(C::inf == C::inf);
+        CHECK(C::inf > C::one);
+        CHECK(math::decimal_t<uint64_t>{"-inf"} < C::zero);
+    }
+    {
+        using C = math::constants<BID_UINT128>;
+        CHECK(C::nan != C::nan);
+        CHECK(C::inf == C::inf);
+        CHECK(C::inf > C::one);
+        CHECK(math::decimal_t<BID_UINT128>{"-inf"} < C::zero);
+    }
 }

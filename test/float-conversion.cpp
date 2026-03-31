@@ -196,3 +196,22 @@ TEST_SUITE("float conversions::special values if supported") {
         CHECK(std::isinf(inf_d));
     }
 }
+
+TEST_SUITE("float conversions::signed zero policy") {
+    TEST_CASE("floating signed zero normalizes to zero") {
+        CHECK(test::as_string(test::dec32_t{-0.0f}) == "0");
+        CHECK(test::as_string(test::dec32_t{-0.0}) == "0");
+
+        CHECK(test::as_string(test::dec64_t{-0.0f}) == "0");
+        CHECK(test::as_string(test::dec64_t{-0.0}) == "0");
+
+        CHECK(test::as_string(test::dec128_t{-0.0f}) == "0");
+        CHECK(test::as_string(test::dec128_t{-0.0L}) == "0");
+    }
+
+    TEST_CASE("positive and negative zero compare equal after float construction") {
+        CHECK(test::dec32_t{0.0} == test::dec32_t{-0.0});
+        CHECK(test::dec64_t{0.0} == test::dec64_t{-0.0});
+        CHECK(test::dec128_t{0.0L} == test::dec128_t{-0.0L});
+    }
+}

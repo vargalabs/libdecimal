@@ -218,16 +218,55 @@ TEST_SUITE("multiplication and division::cross precision") {
 }
 
 TEST_SUITE("multiplication and division::exceptional behavior") {
-    TEST_CASE("division by zero behavior is explicit") {
-        // Tighten this once you decide the library contract:
-        // throw, inf, nan, or status flag.
-        //
-        // For now, this is a probe test you can adapt:
-        //
-        // CHECK_THROWS(test::dec32_t{"1"} / test::dec32_t{"0"});
-        // CHECK_THROWS(test::dec64_t{"1"} / test::dec64_t{"0"});
-        // CHECK_THROWS(test::dec128_t{"1"} / test::dec128_t{"0"});
+    TEST_CASE("division by zero yields non-finite results according to current implementation") {
+        const auto p32 = test::dec32_t{"1"} / test::dec32_t{"0"};
+        const auto n32 = test::dec32_t{"-1"} / test::dec32_t{"0"};
+        const auto z32 = test::dec32_t{"0"} / test::dec32_t{"0"};
 
-        CHECK(true);
+        CHECK(static_cast<std::string>(p32) == "+inf");
+        CHECK(static_cast<std::string>(n32) == "-inf");
+        CHECK(static_cast<std::string>(z32) == "nan");
+
+        const auto p64 = test::dec64_t{"1"} / test::dec64_t{"0"};
+        const auto n64 = test::dec64_t{"-1"} / test::dec64_t{"0"};
+        const auto z64 = test::dec64_t{"0"} / test::dec64_t{"0"};
+
+        CHECK(static_cast<std::string>(p64) == "+inf");
+        CHECK(static_cast<std::string>(n64) == "-inf");
+        CHECK(static_cast<std::string>(z64) == "nan");
+
+        const auto p128 = test::dec128_t{"1"} / test::dec128_t{"0"};
+        const auto n128 = test::dec128_t{"-1"} / test::dec128_t{"0"};
+        const auto z128 = test::dec128_t{"0"} / test::dec128_t{"0"};
+
+        CHECK(static_cast<std::string>(p128) == "+inf");
+        CHECK(static_cast<std::string>(n128) == "-inf");
+        CHECK(static_cast<std::string>(z128) == "nan");
+    }
+
+    TEST_CASE("zero annihilates multiplication even with normalized operands") {
+        CHECK(test::dec32_t{"0000.0"} * test::dec32_t{"123.45"} == test::dec32_t{"0"});
+        CHECK(test::dec64_t{"0000.0"} * test::dec64_t{"123.45"} == test::dec64_t{"0"});
+        CHECK(test::dec128_t{"0000.0"} * test::dec128_t{"123.45"} == test::dec128_t{"0"});
+    }
+
+    TEST_CASE("repeating decimal quotient stays numerically close") {
+        CHECK(static_cast<double>(test::dec32_t{"1"} / test::dec32_t{"3"})
+              == doctest::Approx(1.0 / 3.0).epsilon(1e-6));
+
+        CHECK(static_cast<long double>(test::dec64_t{"1"} / test::dec64_t{"3"})
+              == doctest::Approx(1.0L / 3.0L).epsilon(1e-12));
+
+        CHECK(static_cast<long double>(test::dec128_t{"1"} / test::dec128_t{"3"})
+              == doctest::Approx(1.0L / 3.0L).epsilon(1e-15));
+    }
+
+    TEST_CASE("carry and borrow edge cases") {
+        CHECK(test::as_string(test::dec32_t{"9999999"} + test::dec32_t{"1"}) != "");
+        CHECK(test::as_string(test::dec64_t{"9999999999999999"} + test::dec64_t{"1"}) != "");
+
+        CHECK(test::as_string(test::dec32_t{"1.000"} - test::dec32_t{"0.999"}) == "0.001");
+        CHECK(test::as_string(test::dec64_t{"1000"} - test::dec64_t{"0.001"}) == "999.999");
+        CHECK(test::as_string(test::dec128_t{"1000"} - test::dec128_t{"0.001"}) == "999.999");
     }
 }

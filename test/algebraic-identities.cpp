@@ -113,7 +113,6 @@ namespace {
         CHECK(constants_t::pi         < constants_t::tau);
         CHECK(constants_t::zero       < constants_t::one);
     }
-
 } // namespace
 
 TEST_CASE("math::constants<uint32_t> algebraic identities") {
@@ -126,4 +125,14 @@ TEST_CASE("math::constants<uint64_t> algebraic identities") {
 
 TEST_CASE("math::constants<BID_UINT128> algebraic identities") {
     check_algebraic_identities<BID_UINT128>();
+}
+
+TEST_CASE("math::constants cross-precision exact-friendly agreement") {
+    CHECK(static_cast<std::string>(math::constants<uint32_t>::zero) == "0");
+    CHECK(static_cast<std::string>(math::constants<uint64_t>::zero) == "0");
+    CHECK(static_cast<std::string>(math::constants<BID_UINT128>::zero) == "0");
+
+    CHECK(math::decimal_t<uint32_t>{"1.25"} + math::decimal_t<uint32_t>{"2.5"} == math::decimal_t<uint32_t>{"3.75"});
+    CHECK(math::decimal_t<uint64_t>{"1.25"} + math::decimal_t<uint64_t>{"2.5"} == math::decimal_t<uint64_t>{"3.75"});
+    CHECK(math::decimal_t<BID_UINT128>{"1.25"} + math::decimal_t<BID_UINT128>{"2.5"} == math::decimal_t<BID_UINT128>{"3.75"});
 }

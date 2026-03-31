@@ -359,3 +359,84 @@ TEST_SUITE("import/export::cross precision round-trip") {
         CHECK(e128 == -3);
     }
 }
+TEST_SUITE("import/export::parsing normalization") {
+    TEST_CASE("normalizes leading and trailing zeroes") {
+        CHECK(test::as_string(test::dec32_t{"000123.4500"}) == "123.4500");
+        CHECK(test::as_string(test::dec64_t{"000123.4500"}) == "123.4500");
+        CHECK(test::as_string(test::dec128_t{"000123.4500"}) == "123.4500");
+
+        CHECK(test::as_string(test::dec32_t{"-000123.4500"}) == "-123.4500");
+        CHECK(test::as_string(test::dec64_t{"-000123.4500"}) == "-123.4500");
+        CHECK(test::as_string(test::dec128_t{"-000123.4500"}) == "-123.4500");
+    }
+
+    TEST_CASE("normalizes zero spellings") {
+        CHECK(test::as_string(test::dec32_t{"0.000"}) == "0");
+        CHECK(test::as_string(test::dec64_t{"0.000"}) == "0");
+        CHECK(test::as_string(test::dec128_t{"0.000"}) == "0");
+
+        CHECK(test::as_string(test::dec32_t{"-0"}) == "0");
+        CHECK(test::as_string(test::dec64_t{"-0"}) == "0");
+        CHECK(test::as_string(test::dec128_t{"-0"}) == "0");
+
+        CHECK(test::dec32_t{"-0"} == test::dec32_t{"0"});
+        CHECK(test::dec64_t{"-0"} == test::dec64_t{"0"});
+        CHECK(test::dec128_t{"-0"} == test::dec128_t{"0"});
+    }
+
+    TEST_CASE("accepts explicit plus sign") {
+        CHECK(test::as_string(test::dec32_t{"+123.45"}) == "123.45");
+        CHECK(test::as_string(test::dec64_t{"+123.45"}) == "123.45");
+        CHECK(test::as_string(test::dec128_t{"+123.45"}) == "123.45");
+    }
+
+    TEST_CASE("string roundtrip is stable for normalized finite values") {
+        const test::dec32_t a{"00123.4500"};
+        const test::dec64_t b{"00123.4500"};
+        const test::dec128_t c{"00123.4500"};
+
+        CHECK(test::as_string(test::dec32_t{test::as_string(a)}) == test::as_string(a));
+        CHECK(test::as_string(test::dec64_t{test::as_string(b)}) == test::as_string(b));
+        CHECK(test::as_string(test::dec128_t{test::as_string(c)}) == test::as_string(c));
+    }
+}
+TEST_SUITE("import/export::current permissive parsing behavior") {
+    TEST_CASE("malformed inputs currently produce nan") {
+        CHECK(test::as_string(test::dec32_t{""}) == "nan");
+        CHECK(test::as_string(test::dec32_t{"."}) == "0");
+        CHECK(test::as_string(test::dec32_t{"-"}) == "nan");
+        CHECK(test::as_string(test::dec32_t{"abc"}) == "nan");
+        CHECK(test::as_string(test::dec32_t{"1..2"}) == "nan");
+
+        CHECK(test::as_string(test::dec64_t{""}) == "nan");
+        CHECK(test::as_string(test::dec64_t{"."}) == "0");
+        CHECK(test::as_string(test::dec64_t{"-"}) == "nan");
+        CHECK(test::as_string(test::dec64_t{"abc"}) == "nan");
+        CHECK(test::as_string(test::dec64_t{"1..2"}) == "nan");
+
+        CHECK(test::as_string(test::dec128_t{""}) == "nan");
+        CHECK(test::as_string(test::dec128_t{"."}) == "0");
+        CHECK(test::as_string(test::dec128_t{"-"}) == "nan");
+        CHECK(test::as_string(test::dec128_t{"abc"}) == "nan");
+        CHECK(test::as_string(test::dec128_t{"1..2"}) == "nan");
+    }
+    /* FIXME: Inter libbid fails, compile and see: `thirdparty.cpp`
+    TEST_CASE("scientific notation is supported") {
+        CHECK(test::as_string(test::dec32_t{"1e1"}) == "10");
+        CHECK(test::as_string(test::dec32_t{"1e2"}) == "100");
+        CHECK(test::as_string(test::dec32_t{1e1})  == "10");
+        CHECK(test::as_string(test::dec32_t{1e2})  == "100");
+    }*/
+}
+
+TEST_CASE("diagnose malformed input current behavior") {
+    INFO("dec32 empty  => [" << test::as_string(test::dec32_t{""}) << "]");
+    INFO("dec32 dot    => [" << test::as_string(test::dec32_t{"."}) << "]");
+    INFO("dec32 minus  => [" << test::as_string(test::dec32_t{"-"}) << "]");
+    INFO("dec32 abc    => [" << test::as_string(test::dec32_t{"abc"}) << "]");
+    INFO("dec32 1..2   => [" << test::as_string(test::dec32_t{"1..2"}) << "]");
+    INFO("dec32 1e3    => [" << test::as_string(test::dec32_t{"1e3"}) << "]");
+    INFO("dec32 1E3    => [" << test::as_string(test::dec32_t{"1E3"}) << "]");
+
+    CHECK(true);
+}
