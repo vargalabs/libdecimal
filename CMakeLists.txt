@@ -91,6 +91,7 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(ops-add-sub)
     add_test_case(ops-mul-div)
     add_test_case(ops-transcendental)
+    add_test_case(import-export)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
