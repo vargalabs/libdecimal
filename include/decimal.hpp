@@ -400,6 +400,7 @@ namespace math {
         inline static const decimal_t tau          = static_cast<decimal_t>("6.283185307179586");
         inline static const decimal_t e            = static_cast<decimal_t>("2.718281828459045");
         inline static const decimal_t phi          = static_cast<decimal_t>("1.618033988749895");
+        inline static const decimal_t golden_ratio = phi;        
         inline static const decimal_t silver_ratio = static_cast<decimal_t>("2.414213562373095");
         inline static const decimal_t sqrt2        = static_cast<decimal_t>("1.414213562373095");
         inline static const decimal_t sqrt3        = static_cast<decimal_t>("1.732050807568877");

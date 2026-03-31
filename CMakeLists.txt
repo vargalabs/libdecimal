@@ -92,6 +92,8 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(ops-mul-div)
     add_test_case(ops-transcendental)
     add_test_case(import-export)
+    add_test_case(constants)
+    add_test_case(algebraic-identities)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
