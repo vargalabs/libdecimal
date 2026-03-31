@@ -1,6 +1,6 @@
 
 [![CI](https://github.com/vargalabs/libdecimal/actions/workflows/ci.yml/badge.svg)](https://github.com/vargalabs/libdecimal/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/vargalabs/libdecimal/branch/main/graph/badge.svg)](https://codecov.io/gh/vargalabs/libdecimal)
+[![codecov](https://codecov.io/gh/vargalabs/libdecimal/graph/badge.svg?token=F6YCNG3HEY)](https://codecov.io/gh/vargalabs/libdecimal)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19323619.svg)](https://doi.org/10.5281/zenodo.19323619)
 [![GitHub release](https://img.shields.io/github/v/release/vargalabs/libdecimal.svg)](https://github.com/vargalabs/libdecimal/releases)
