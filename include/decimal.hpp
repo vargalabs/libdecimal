@@ -27,13 +27,24 @@
 #ifndef BID128_MAX_PRINTED_DIGITS
     #define BID128_MAX_PRINTED_DIGITS 80
 #endif
-
+// must go to global namespace
+inline bool operator==(const BID_UINT128& a, const BID_UINT128& b) noexcept {
+    return a.w[0] == b.w[0] && a.w[1] == b.w[1];
+}
+inline bool operator>(const BID_UINT128& a, const BID_UINT128& b) {
+    return (a.w[1] > b.w[1]) || (a.w[1] == b.w[1] && a.w[0] > b.w[0]);
+}
+inline BID_UINT128 to_bid128(unsigned __int128 x) noexcept {
+    return {static_cast<std::uint64_t>(x), static_cast<std::uint64_t>(x >> 64)};
+}
 namespace math::bid {
+    using uint128_t = BID_UINT128; 
     enum struct category : unsigned char {
         positive = 0b0000, negative = 0b0001, pinf = 0b0010, ninf = 0b0011, nan = 0b0100
     };
     template<class T>
     inline std::string print(bool signbit, T mantissa, int exponent, char* buffer, size_t size) {
+        if (mantissa == 0) return "0";
         size_t i = size - 1;
         if(exponent > 0) // suffix with zeroes only 
             while(--exponent) buffer[i--] = '0'; 
@@ -66,7 +77,7 @@ namespace math::bid {
             }
             return std::make_tuple(sign_bit ? category::negative : category::positive, mantissa, exponent);
         } else if(combination > discriminant) return std::make_tuple(category::nan, uint32_t{0}, int16_t{0});
-          else return std::make_tuple(sign_bit ? category::ninf : category::pinf, 0x0, 0x0);        
+          else return std::make_tuple(sign_bit ? category::ninf : category::pinf, 0x0, 0x0);
     }
     inline uint32_t uint32_to_bid32(uint32_t significand, int32_t exponent) {
         constexpr int bias = 101;
@@ -133,15 +144,55 @@ namespace math::bid {
             default: return print(kind != category::positive, mantissa, exponent, buffer.data(), buffer.size());
         }
     }
-    inline std::string display_bid128(BID_UINT128 bid) {
-        char buf[200]{};
-        unsigned int flags = 0;
-        bid128_to_string(buf, bid, &flags);
-        return std::string(buf);
+    inline std::tuple<category, unsigned __int128, int16_t> decompose(const BID_UINT128& bid) noexcept {
+        constexpr int32_t bias = 6176;
+        constexpr uint64_t sign_mask = 0x8000'0000'0000'0000ull, combination_shift = 46, combination_mask  = (1ull << 17) - 1,
+            top5_shift = 12, steering_mask = 0x3ull << 15, steering_11 = 0x3ull << 15, top5_inf = 0x1eull, top5_nan = 0x1full,
+            coeff_small_hi_mask = (1ull << 49) - 1, coeff_large_hi_mask = (1ull << 47) - 1, exponent_mask = (1ull << 14) - 1;
+        constexpr unsigned __int128 max_coeff = (static_cast<unsigned __int128>(0x0001ed09bead87c0ull) << 64) | static_cast<unsigned __int128>(0x378d8e63ffffffffull);
+        const uint64_t hi = bid.w[1], lo = bid.w[0],  combination = (hi >> combination_shift) & combination_mask;
+        const uint64_t top5 = combination >> top5_shift;
+        const bool sign_bit = (hi & sign_mask) != 0;
+        if ((combination & steering_mask) != steering_11) {
+            const int32_t exponent = static_cast<int32_t>(combination >> 3) - bias;
+            const unsigned __int128 mantissa = (static_cast<unsigned __int128>(hi & coeff_small_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+            return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
+        } else if (top5 == top5_nan) return {category::nan, 0, 0};
+        if (top5 == top5_inf) return {sign_bit ? category::ninf : category::pinf, 0, 0};
+        const int32_t exponent = static_cast<int32_t>((combination >> 1) & exponent_mask) - bias; // finite, large coefficient branch (implicit leading "100")
+        unsigned __int128 mantissa = (static_cast<unsigned __int128>(1) << 113) | (static_cast<unsigned __int128>(hi & coeff_large_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+        if (mantissa > max_coeff) mantissa = 0; // non-canonical coefficients decode as zero
+        return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
+    }
+    inline std::string display_bid128(const BID_UINT128& bid) {
+        std::array<char, BID128_MAX_PRINTED_DIGITS> buffer;
+        auto [kind, coefficient, exponent] = decompose(bid);
+        switch (kind) {
+            case category::nan: return "nan";
+            case category::pinf: return "+inf";
+            case category::ninf: return "-inf";
+            default:
+                return print(kind != category::positive, coefficient, exponent, buffer.data(), buffer.size());
+        }
+    }    
+    inline BID_UINT128 uint128_to_bid128_(BID_UINT128 significand, int exponent) {
+        constexpr std::uint64_t bias = 6176;
+        constexpr BID_UINT128 max_significand = {{0x378d8e63ffffffffull, 0x0001ed09bead87c0ull}}, zero = {{0x0000000000000000ull, 0x3040000000000000ull}};
+        if (significand.w[1] == 0 && significand.w[0] == 0) return zero;
+        if (exponent < -6176 || exponent > 6111) throw std::out_of_range("Exponent out of Decimal128 range.");
+        if (significand > max_significand) return zero;
+        const std::uint64_t biased_exponent = static_cast<std::uint64_t>(exponent) + bias;
+        return {significand.w[0],(significand.w[1] & 0x0001FFFFFFFFFFFFull) | ((biased_exponent & 0x3fffull) << 49)};
     }
     inline BID_UINT128 uint128_to_bid128(BID_UINT128 significand, int exponent) {
-        BID_UINT128 value;
-        return value;
+        constexpr std::uint64_t bias = 6176;
+        constexpr BID_UINT128 max_significand = {{0x378d8e63ffffffffull, 0x0001ed09bead87c0ull}}, zero = {{0x0000000000000000ull, 0x3040000000000000ull}};
+        if (significand.w[1] == 0 && significand.w[0] == 0) return zero;
+        if (exponent < -6176 || exponent > 6111) throw std::out_of_range("Exponent out of Decimal128 range.");
+        if (significand > max_significand) return zero;
+        const std::uint64_t biased_exponent = static_cast<std::uint64_t>(exponent) + bias;
+        if ((significand.w[1] >> 49) == 0) return {significand.w[0], (significand.w[1] & 0x0001FFFFFFFFFFFFull) | ((biased_exponent & 0x3fffull) << 49)}; // small finite branch: coefficient < 2^113
+        return { significand.w[0], ((significand.w[1] & 0x00007FFFFFFFFFFFull)) | ((biased_exponent & 0x3fffull) << 47) | (0x3ull << 61)};  // large finite branch: coefficient has implicit leading 100...
     }    
 }
 
