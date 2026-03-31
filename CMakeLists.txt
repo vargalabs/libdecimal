@@ -87,6 +87,7 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(decimal)
     add_test_case(decimal-bid-spec)
     add_test_case(decimal-display)
+    add_test_case(float-conversion)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
