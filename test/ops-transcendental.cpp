@@ -88,7 +88,7 @@ TEST_SUITE("transcendental functions::decimal64") {
 
     TEST_CASE("exp at easy points") {
         CHECK(test::as_long_double(math::exp(test::dec64_t{"0"})) == doctest::Approx(1.0L));
-        CHECK(test::as_long_double(math::exp(test::dec64_t{"1"})) == doctest::Approx(std::expl(1.0L)));
+        CHECK(test::as_long_double(math::exp(test::dec64_t{"1"})) == doctest::Approx(std::exp(1.0L)));
     }
 
     TEST_CASE("log at easy points") {
@@ -140,7 +140,7 @@ TEST_SUITE("transcendental functions::decimal128") {
 
     TEST_CASE("exp at easy points") {
         CHECK(test::as_long_double(math::exp(test::dec128_t{"0"})) == doctest::Approx(1.0L));
-        CHECK(test::as_long_double(math::exp(test::dec128_t{"1"})) == doctest::Approx(std::expl(1.0L)));
+        CHECK(test::as_long_double(math::exp(test::dec128_t{"1"})) == doctest::Approx(std::exp(1.0L)));
     }
 
     TEST_CASE("log at easy points") {

@@ -1,6 +1,6 @@
 
 [![CI](https://github.com/vargalabs/libdecimal/actions/workflows/ci.yml/badge.svg)](https://github.com/vargalabs/libdecimal/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/vargalabs/libdecimal/branch/main/graph/badge.svg)](https://codecov.io/gh/vargalabs/libdecimal)
+[![codecov](https://codecov.io/gh/vargalabs/libdecimal/graph/badge.svg?token=F6YCNG3HEY)](https://codecov.io/gh/vargalabs/libdecimal)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19323619.svg)](https://doi.org/10.5281/zenodo.19323619)
 [![GitHub release](https://img.shields.io/github/v/release/vargalabs/libdecimal.svg)](https://github.com/vargalabs/libdecimal/releases)
@@ -82,6 +82,12 @@ find_package(libdecimal REQUIRED)
 add_executable(app main.cpp)
 target_link_libraries(app PRIVATE libdecimal::libdecimal)
 ```
+
+## Attribution
+**LIBDECIMAL** builds on Intel’s LIBBID implementation of IEEE 754 decimal arithmetic. **The heavy lifting** — the arithmetic itself — comes from the work **of Marius Cornea, John Harrison, Cristina Anderson, and Evgeny Gvozdev**. **The** underlying **model** traces back **to Mike Cowlishaw** and the IEEE 754 standard.
+
+**The template/macro contraption** that makes it usable in modern C++, **along with the full decomposition of BID into sign, significand, and exponent** — that **is on me**.
+
 
 [200]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-gcc-13.svg
 [201]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-gcc-14.svg

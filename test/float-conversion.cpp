@@ -24,10 +24,7 @@ namespace test {
 
     template <class float_t>
     bool nearly_equal(float_t a, float_t b, float_t eps = static_cast<float_t>(1e-12)) {
-        if constexpr (std::is_same_v<float_t, long double>)
-            return std::fabsl(a - b) <= eps;
-        else
-            return std::fabs(a - b) <= eps;
+        return std::fabs(a - b) <= eps;
     }
 }
 
