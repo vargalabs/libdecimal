@@ -335,25 +335,36 @@ namespace math {
     TODO: pow hypot rem quantize quantexp quantum
     */
 
-    #define sigma_unary_op(bit_size, fn_call) \
+    #define sigma_unary_op(bit_size, fn_call)                                                                \
         decimal_t<uint##bit_size##_t> fn_call(decimal_t<uint##bit_size##_t> decimal, unsigned int flags=0U){ \
-            decimal_t<uint##bit_size##_t> bid; \
-            bid.value = __bid##bit_size##_##fn_call(decimal.value, BID_ROUNDING_TO_NEAREST, &flags); \
-            return bid; \
+            decimal_t<uint##bit_size##_t> bid;                                                               \
+            bid.value = __bid##bit_size##_##fn_call(decimal.value, BID_ROUNDING_TO_NEAREST, &flags);         \
+            return bid;                                                                                      \
         }
     // problems: sigma_unary_op(N, expm2)  sigma_unary_op(N, abs)
-    #define sigma_op(N) sigma_unary_op(N, tgamma) sigma_unary_op(N, lgamma) sigma_unary_op(N, sin) \
-        sigma_unary_op(N, tan) sigma_unary_op(N, sinh) sigma_unary_op(N, log2) sigma_unary_op(N, log1p) \
-        sigma_unary_op(N, log10) sigma_unary_op(N, exp) sigma_unary_op(N, expm1) \
-        sigma_unary_op(N, exp10) sigma_unary_op(N, erfc) sigma_unary_op(N, erf) sigma_unary_op(N, cosh) \
-        sigma_unary_op(N, cbrt) sigma_unary_op(N, atanh) sigma_unary_op(N, asinh) sigma_unary_op(N, asin) \
-        sigma_unary_op(N, acosh) sigma_unary_op(N, acos)   sigma_unary_op(N, sqrt)
+    #define sigma_op(N) sigma_unary_op(N, tgamma) sigma_unary_op(N, lgamma)                                                       \
+    sigma_unary_op(N, sin)   sigma_unary_op(N, cos)   sigma_unary_op(N, tan)   sigma_unary_op(N, sinh)  sigma_unary_op(N, cosh)   \
+    sigma_unary_op(N, tanh)  sigma_unary_op(N, asin)  sigma_unary_op(N, acos)  sigma_unary_op(N, atan)  sigma_unary_op(N, asinh)  \
+    sigma_unary_op(N, acosh) sigma_unary_op(N, atanh) sigma_unary_op(N, log)   sigma_unary_op(N, log2)  sigma_unary_op(N, log10)  \
+    sigma_unary_op(N, log1p) sigma_unary_op(N, exp)   sigma_unary_op(N, expm1) sigma_unary_op(N, exp10)                           \
+    sigma_unary_op(N, erf)   sigma_unary_op(N, erfc)  sigma_unary_op(N, cbrt)  sigma_unary_op(N, sqrt) 
 
     sigma_op(32); sigma_op(64); sigma_op(128);
 
     #undef sigma__op
     #undef sigma_unary_op
     #undef sigma_binary_op
+    template <typename value_t> inline decimal_t<value_t> abs(decimal_t<value_t> x);
+    #define sigma_abs(bit_size, value_type)                                 \
+        inline decimal_t<value_type> abs(decimal_t<value_type> x) {         \
+            decimal_t<value_type> out;                                      \
+            out.value = __bid##bit_size##_abs(x.value);                     \
+            return out;                                                     \
+        }
+
+    sigma_abs(32,  uint32_t)
+    sigma_abs(64,  uint64_t)
+    sigma_abs(128, BID_UINT128)
 }
 // constants
 
@@ -446,4 +457,4 @@ namespace math {
         inline static const decimal_t cube_root_2  = static_cast<decimal_t>("1.2599210498948731647672106072782284");
         inline static const decimal_t cube_root_3  = static_cast<decimal_t>("1.4422495703074083823216383107801096");
     };    
-}    
+}
