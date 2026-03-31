@@ -86,6 +86,7 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(example)
     add_test_case(decimal)
     add_test_case(decimal-bid-spec)
+    add_test_case(decimal-display)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
