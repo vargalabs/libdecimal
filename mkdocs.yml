@@ -6,6 +6,11 @@ copyright: Steven Varga
 docs_dir: docs
 nav:
   - Overview: index.md
+  - Conversion: conversion.md
+  - Print: display.md
+  - Operations: operations.md
+  - Constants: constants.md
+  - Issues: issues.md
 
 theme:
   name: material
@@ -64,9 +69,7 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed:
-      slugify: !!python/object/apply:pymdownx.slugs.slugify
-        kwds:
-          case: lower
+      alternate_style: true
   - pymdownx.blocks.caption
   - pymdownx.caret
   - pymdownx.mark
