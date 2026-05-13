@@ -2,6 +2,7 @@
 #include <sstream>
 #include <vector>
 #include <boost/decimal.hpp>
+#include <boost/decimal/cstdlib.hpp>
 #include <decimal/bid.hpp>
 #include <decimal/bcd.hpp>
 #include <decimal/scaled.hpp>
@@ -76,8 +77,7 @@ int main() {
         });
         bench.run("boost decimal64", [&] {
             for (std::size_t i = 0; i < N; ++i) {
-                const auto& s = str_inputs[i];
-                auto v = boost64(s.c_str(), s.c_str() + s.size());
+                auto v = boost::decimal::strtod64(str_inputs[i].c_str(), nullptr);
                 ankerl::nanobench::doNotOptimizeAway(v);
             }
         });

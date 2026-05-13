@@ -1,70 +1,142 @@
+#include <cstdint>
+#include <vector>
 #include <boost/decimal.hpp>
+#include <boost/decimal/cmath.hpp>
 #include <decimal/bid.hpp>
-
-#include "traits.hpp"
-#include "utils.hpp"
+#include <decimal/utils.hpp>
+#include <decimal/scaled.hpp>
 
 #define ANKERL_NANOBENCH_IMPLEMENT
 #include <nanobench.hpp>
 
+// Decompose benchmark: extract (significand, exponent) from each decimal type.
+//
+// Cost matters for serialization, logging, and any code path that must inspect
+// the internal representation (e.g., risk checks, rounding, wire encoding).
+//
+// float/double:        math::utils::decompose — frexp-based decimal extraction
+// intel BID32/64:      math::bid::decompose  — bit-manipulation on BID layout
+// scaled int32/64:     v.as_pair()           — direct struct field access
+// boost decimal32/64:  frexp10(v, &exp)      — normalized significand + exponent
+
 namespace bench {
 
-    using decompose_32_t = std::tuple<float,  math::decimal_t<std::uint32_t>,  math::scaled::decimal_t<std::uint32_t>, boost::decimal::decimal32_t>;
-    using decompose_64_t = std::tuple<double, math::decimal_t<std::uint64_t>, math::scaled::decimal_t<std::uint64_t>, boost::decimal::decimal64_t>;
-    using type_list = std::tuple<decompose_32_t, decompose_64_t>;
-
-
-    template<class significand_t> struct input_t {
-        significand_t significand;
-        int exponent;
-    };
-
-    template<class significand_t> std::vector<input_t<significand_t>> make_input(std::size_t n, int exponent = -4) {
-        std::vector<input_t<significand_t>> v;
+    template<class significand_t>
+    std::vector<significand_t> make_uint_input(std::size_t n) {
+        std::vector<significand_t> v;
         v.reserve(n);
         std::uint64_t seed = 0x9e3779b97f4a7c15ULL;
         for (std::size_t i = 0; i < n; ++i) {
             seed ^= seed >> 12, seed ^= seed << 25, seed ^= seed >> 27;
-            std::uint64_t raw = (seed * 2685821657736338717ULL) % 1'000'000'000ULL + 1ULL;
-            v.push_back({static_cast<significand_t>(raw), exponent });
+            v.push_back(static_cast<significand_t>((seed * 2685821657736338717ULL) % 1'000'000'000ULL + 1ULL));
         }
         return v;
-    }
-
-    template<class element_t>
-    void run_decompose_case(ankerl::nanobench::Bench& bench, std::size_t n) {
-        using traits = traits_t<element_t>;
-        using significand = typename traits::significand_t;
-        const auto input = make_input<significand>(n);
-
-        std::vector<element_t> values;
-        values.reserve(n);
-        for (std::size_t i = 0; i < n; ++i)
-            values.push_back(traits::make(input[i].significand, input[i].exponent));
-
-        bench.run(traits::name().data(), [&] {
-            for (std::size_t i = 0; i < n; ++i) {
-                auto x = traits::decompose(values[i]);
-                ankerl::nanobench::doNotOptimizeAway(x.significand);
-                ankerl::nanobench::doNotOptimizeAway(x.exponent);
-            }
-        });
-    }
-
-    template<class group> void run_decompose_group(std::string_view title, std::size_t n) {
-        ankerl::nanobench::Bench bench;
-        bench.title(title.data()).relative(true)
-             .minEpochIterations(40'000).epochs(30);
-        static_for<group>([&]<class element_t>() {
-            run_decompose_case<element_t>(bench, n);
-        });
     }
 
 } // namespace bench
 
 int main() {
-    constexpr std::size_t n = 1'000;
+    using bid32   = math::decimal_t<std::uint32_t>;
+    using bid64   = math::decimal_t<std::uint64_t>;
+    using scaled32 = math::scaled::decimal_t<std::uint32_t>;
+    using scaled64 = math::scaled::decimal_t<std::int64_t>;
+    using boost32 = boost::decimal::decimal32_t;
+    using boost64 = boost::decimal::decimal64_t;
+    constexpr std::size_t N = 10'000;
 
-    bench::run_decompose_group<bench::decompose_32_t>("decompose to significand+exponent (32-bit)", n);
-    bench::run_decompose_group<bench::decompose_64_t>("decompose to significand+exponent (64-bit)", n);
+    const auto raw = bench::make_uint_input<std::uint64_t>(N);
+
+    // Pre-build typed values
+    std::vector<float>    float_vals;
+    std::vector<double>   double_vals;
+    std::vector<bid32>    bid32_vals;
+    std::vector<bid64>    bid64_vals;
+    std::vector<scaled32> sc32_vals;
+    std::vector<scaled64> sc64_vals;
+    std::vector<boost32>  boost32_vals;
+    std::vector<boost64>  boost64_vals;
+    for (std::size_t i = 0; i < N; ++i) {
+        float_vals.push_back(static_cast<float>(raw[i]) * 1e-4f);
+        double_vals.push_back(static_cast<double>(raw[i]) * 1e-4);
+        bid32_vals.push_back(bid32(static_cast<std::uint32_t>(raw[i] % 1'000'000ULL), -4));
+        bid64_vals.push_back(bid64(raw[i], -4));
+        sc32_vals.push_back(scaled32{static_cast<std::uint32_t>(raw[i] % 1'000'000ULL), std::int16_t{-4}});
+        sc64_vals.push_back(scaled64{static_cast<std::int64_t>(raw[i]), std::int16_t{-4}});
+        boost32_vals.push_back(boost32(static_cast<std::uint32_t>(raw[i] % 1'000'000ULL), -4));
+        boost64_vals.push_back(boost64(raw[i], -4));
+    }
+
+    // 32-bit decompose
+    {
+        ankerl::nanobench::Bench bench;
+        bench.title("decompose to significand+exponent (32-bit)").relative(true)
+             .minEpochIterations(40'000).epochs(30);
+
+        bench.run("float (utils::decompose)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [kind, sig, exp] = math::utils::decompose<float, std::uint32_t, std::int16_t>(float_vals[i]);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("intel bid32 (bid::decompose)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [kind, sig, exp] = math::bid::decompose(bid32_vals[i].value);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("scaled uint32 (as_pair)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [sig, exp] = sc32_vals[i].as_pair();
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("boost decimal32 (frexp10)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                int exp{};
+                auto sig = boost::decimal::frexp10(boost32_vals[i], &exp);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+    }
+
+    // 64-bit decompose
+    {
+        ankerl::nanobench::Bench bench;
+        bench.title("decompose to significand+exponent (64-bit)").relative(true)
+             .minEpochIterations(40'000).epochs(30);
+
+        bench.run("double (utils::decompose)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [kind, sig, exp] = math::utils::decompose<double, std::uint64_t, std::int16_t>(double_vals[i]);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("intel bid64 (bid::decompose)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [kind, sig, exp] = math::bid::decompose(bid64_vals[i].value);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("scaled int64 (as_pair)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto [sig, exp] = sc64_vals[i].as_pair();
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+        bench.run("boost decimal64 (frexp10)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                int exp{};
+                auto sig = boost::decimal::frexp10(boost64_vals[i], &exp);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
+    }
 }
