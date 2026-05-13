@@ -64,19 +64,19 @@ int main() {
     {
         ankerl::nanobench::Bench bench;
         bench.title("compare <  (micro, 10k pairs)").relative(true).minEpochIterations(5'000).epochs(30);
+        bench::bench_compare_micro<boost64>(bench, "boost decimal64",N_micro, [](std::uint64_t v){ return boost64(v, -4); });
         bench::bench_compare_micro<double> (bench, "double",         N_micro, [](std::uint64_t v){ return static_cast<double>(v) * 1e-4; });
         bench::bench_compare_micro<bid64>  (bench, "intel bid64",    N_micro, [](std::uint64_t v){ return bid64(v, -4); });
         bench::bench_compare_micro<fixed64>(bench, "fixed64 -4",     N_micro, [](std::uint64_t v){ return fixed64{math::bid::category::positive, static_cast<std::uint64_t>(v)}; });
         bench::bench_compare_micro<scaled> (bench, "scaled int64",   N_micro, [](std::uint64_t v){ return scaled{static_cast<std::int64_t>(v), -4}; });
-        bench::bench_compare_micro<boost64>(bench, "boost decimal64",N_micro, [](std::uint64_t v){ return boost64(v, -4); });
     }
     {
         ankerl::nanobench::Bench bench;
         bench.title("sort 1000 values").relative(true).minEpochIterations(500).epochs(30);
+        bench::bench_sort<boost64>(bench, "boost decimal64",N_sort, [](std::uint64_t v){ return boost64(v, -4); });
         bench::bench_sort<double> (bench, "double",         N_sort, [](std::uint64_t v){ return static_cast<double>(v) * 1e-4; });
         bench::bench_sort<bid64>  (bench, "intel bid64",    N_sort, [](std::uint64_t v){ return bid64(v, -4); });
         bench::bench_sort<fixed64>(bench, "fixed64 -4",     N_sort, [](std::uint64_t v){ return fixed64{math::bid::category::positive, static_cast<std::uint64_t>(v)}; });
         bench::bench_sort<scaled> (bench, "scaled int64",   N_sort, [](std::uint64_t v){ return scaled{static_cast<std::int64_t>(v), -4}; });
-        bench::bench_sort<boost64>(bench, "boost decimal64",N_sort, [](std::uint64_t v){ return boost64(v, -4); });
     }
 }

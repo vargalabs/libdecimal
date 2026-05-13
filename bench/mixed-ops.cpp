@@ -58,6 +58,13 @@ int main() {
     bench.title("risk limit check: accumulate + clamp (10k, mixed pos/neg)").relative(true)
          .minEpochIterations(500).epochs(30);
 
+    bench::bench_risk_limit<boost64>(bench, "boost decimal64", N,
+        [](std::int64_t v){
+            return v >= 0 ? boost64(static_cast<std::uint64_t>(v), -4)
+                          : -boost64(static_cast<std::uint64_t>(-v), -4);
+        },
+        boost64(0, 0), boost64(LIMIT_SIG, -4));
+
     bench::bench_risk_limit<double>(bench, "double", N,
         [](std::int64_t v){ return static_cast<double>(v) * 1e-4; },
         0.0, static_cast<double>(LIMIT_SIG) * 1e-4);
@@ -79,11 +86,4 @@ int main() {
     bench::bench_risk_limit<scaled>(bench, "scaled int64", N,
         [](std::int64_t v){ return scaled{v, -4}; },
         scaled{0, 0}, scaled{static_cast<std::int64_t>(LIMIT_SIG), -4});
-
-    bench::bench_risk_limit<boost64>(bench, "boost decimal64", N,
-        [](std::int64_t v){
-            return v >= 0 ? boost64(static_cast<std::uint64_t>(v), -4)
-                          : -boost64(static_cast<std::uint64_t>(-v), -4);
-        },
-        boost64(0, 0), boost64(LIMIT_SIG, -4));
 }

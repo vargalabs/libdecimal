@@ -72,10 +72,10 @@ int main() {
         ankerl::nanobench::Bench bench;
         bench.title("fee = notional * rate (multiply 1k pairs)").relative(true)
              .minEpochIterations(10'000).epochs(30);
+        bench::bench_fee_calc<boost64>(bench, "boost decimal64", N, make_boost64, make_boost64);
         bench::bench_fee_calc<double> (bench, "double",          N, make_double,  make_double);
         bench::bench_fee_calc<bid64>  (bench, "intel bid64",     N, make_bid64,   make_bid64);
         bench::bench_fee_calc<fixed64>(bench, "fixed64 -4",      N, make_fixed64, make_fixed64);
         bench::bench_fee_calc<scaled> (bench, "scaled int64",    N, make_scaled,  make_scaled);
-        bench::bench_fee_calc<boost64>(bench, "boost decimal64", N, make_boost64, make_boost64);
     }
 }

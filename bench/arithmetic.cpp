@@ -79,21 +79,21 @@ int main() {
     {
         ankerl::nanobench::Bench bench;
         bench.title("accumulate sum (10k values)").relative(true).minEpochIterations(500).epochs(30);
+        bench::bench_accumulate<boost64>(bench, "boost decimal64", N_acc, make_boost64, boost64(0, 0));
         bench::bench_accumulate<double> (bench, "double",          N_acc, make_double,  0.0);
         bench::bench_accumulate<bid64>  (bench, "intel bid64",     N_acc, make_bid64,   bid64(0, 0));
         bench::bench_accumulate<bcd64>  (bench, "bcd64",           N_acc, make_bcd64,   bcd64{0ull});
         bench::bench_accumulate<fixed64>(bench, "fixed64 -4",      N_acc, make_fixed64, fixed64{cat::zero, 0u});
         bench::bench_accumulate<scaled> (bench, "scaled int64",    N_acc, make_scaled,  scaled{0, 0});
-        bench::bench_accumulate<boost64>(bench, "boost decimal64", N_acc, make_boost64, boost64(0, 0));
     }
     {
         ankerl::nanobench::Bench bench;
         bench.title("dot product price*qty (256 pairs)").relative(true).minEpochIterations(2'000).epochs(30);
+        bench::bench_dot_product<boost64>(bench, "boost decimal64", N_dot, make_boost64, make_boost64, boost64(0, 0));
         bench::bench_dot_product<double> (bench, "double",          N_dot, make_double,  make_double,  0.0);
         bench::bench_dot_product<bid64>  (bench, "intel bid64",     N_dot, make_bid64,   make_bid64,   bid64(0, 0));
         bench::bench_dot_product<bcd64>  (bench, "bcd64",           N_dot, make_bcd64,   make_bcd64,   bcd64{0ull});
         bench::bench_dot_product<fixed64>(bench, "fixed64 -4",      N_dot, make_fixed64, make_fixed64, fixed64{cat::zero, 0u});
         bench::bench_dot_product<scaled> (bench, "scaled int64",    N_dot, make_scaled,  make_scaled,  scaled{0, 0});
-        bench::bench_dot_product<boost64>(bench, "boost decimal64", N_dot, make_boost64, make_boost64, boost64(0, 0));
     }
 }

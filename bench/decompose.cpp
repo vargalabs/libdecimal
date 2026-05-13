@@ -72,6 +72,14 @@ int main() {
         bench.title("decompose to significand+exponent (32-bit)").relative(true)
              .minEpochIterations(40'000).epochs(30);
 
+        bench.run("boost decimal32 (frexp10)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                int exp{};
+                auto sig = boost::decimal::frexp10(boost32_vals[i], &exp);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
         bench.run("float (utils::decompose)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto [kind, sig, exp] = math::utils::decompose<float, std::uint32_t, std::int16_t>(float_vals[i]);
@@ -93,14 +101,6 @@ int main() {
                 ankerl::nanobench::doNotOptimizeAway(exp);
             }
         });
-        bench.run("boost decimal32 (frexp10)", [&] {
-            for (std::size_t i = 0; i < N; ++i) {
-                int exp{};
-                auto sig = boost::decimal::frexp10(boost32_vals[i], &exp);
-                ankerl::nanobench::doNotOptimizeAway(sig);
-                ankerl::nanobench::doNotOptimizeAway(exp);
-            }
-        });
     }
 
     // 64-bit decompose
@@ -109,6 +109,14 @@ int main() {
         bench.title("decompose to significand+exponent (64-bit)").relative(true)
              .minEpochIterations(40'000).epochs(30);
 
+        bench.run("boost decimal64 (frexp10)", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                int exp{};
+                auto sig = boost::decimal::frexp10(boost64_vals[i], &exp);
+                ankerl::nanobench::doNotOptimizeAway(sig);
+                ankerl::nanobench::doNotOptimizeAway(exp);
+            }
+        });
         bench.run("double (utils::decompose)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto [kind, sig, exp] = math::utils::decompose<double, std::uint64_t, std::int16_t>(double_vals[i]);
@@ -126,14 +134,6 @@ int main() {
         bench.run("scaled int64 (as_pair)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto [sig, exp] = sc64_vals[i].as_pair();
-                ankerl::nanobench::doNotOptimizeAway(sig);
-                ankerl::nanobench::doNotOptimizeAway(exp);
-            }
-        });
-        bench.run("boost decimal64 (frexp10)", [&] {
-            for (std::size_t i = 0; i < N; ++i) {
-                int exp{};
-                auto sig = boost::decimal::frexp10(boost64_vals[i], &exp);
                 ankerl::nanobench::doNotOptimizeAway(sig);
                 ankerl::nanobench::doNotOptimizeAway(exp);
             }

@@ -63,6 +63,12 @@ int main() {
         ankerl::nanobench::Bench bench;
         bench.title("parse decimal string").relative(true).minEpochIterations(2'000).epochs(30);
 
+        bench.run("boost decimal64", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                auto v = boost::decimal::strtod64(str_inputs[i].c_str(), nullptr);
+                ankerl::nanobench::doNotOptimizeAway(v);
+            }
+        });
         bench.run("intel bid64", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto v = bid64(str_inputs[i].c_str());
@@ -72,12 +78,6 @@ int main() {
         bench.run("bcd64 (digit-string + exp)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto v = bcd64(std::string_view(bcd_inputs[i].first), static_cast<std::int16_t>(bcd_inputs[i].second));
-                ankerl::nanobench::doNotOptimizeAway(v);
-            }
-        });
-        bench.run("boost decimal64", [&] {
-            for (std::size_t i = 0; i < N; ++i) {
-                auto v = boost::decimal::strtod64(str_inputs[i].c_str(), nullptr);
                 ankerl::nanobench::doNotOptimizeAway(v);
             }
         });
@@ -111,6 +111,14 @@ int main() {
         ankerl::nanobench::Bench bench;
         bench.title("format to string").relative(true).minEpochIterations(2'000).epochs(30);
 
+        bench.run("boost decimal64", [&] {
+            for (std::size_t i = 0; i < N; ++i) {
+                std::ostringstream oss;
+                oss << boost_vals[i];
+                auto s = oss.str();
+                ankerl::nanobench::doNotOptimizeAway(s);
+            }
+        });
         bench.run("intel bid64 (std::format)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto s = std::format("{}", bid_vals[i]);
@@ -126,14 +134,6 @@ int main() {
         bench.run("scaled (cast to string)", [&] {
             for (std::size_t i = 0; i < N; ++i) {
                 auto s = static_cast<std::string>(scaled_vals[i]);
-                ankerl::nanobench::doNotOptimizeAway(s);
-            }
-        });
-        bench.run("boost decimal64", [&] {
-            for (std::size_t i = 0; i < N; ++i) {
-                std::ostringstream oss;
-                oss << boost_vals[i];
-                auto s = oss.str();
                 ankerl::nanobench::doNotOptimizeAway(s);
             }
         });
