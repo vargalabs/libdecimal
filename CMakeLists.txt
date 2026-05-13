@@ -111,6 +111,12 @@ if(libdecimal_BUILD_BENCHMARKS)
 
     add_benchmark(construct-from-pair)
     add_benchmark(decompose)
+    add_benchmark(compare)
+    add_benchmark(arithmetic)
+    add_benchmark(string)
+    add_benchmark(ops-fee)
+    add_benchmark(encode-decode)
+    add_benchmark(mixed-ops)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
