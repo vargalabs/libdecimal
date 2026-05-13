@@ -96,6 +96,23 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(algebraic-identities)
 endif()
 # ------------------------------------------------------------------------------
+# Benchmarks
+# ------------------------------------------------------------------------------
+option(libdecimal_BUILD_BENCHMARKS "Build benchmarks" OFF)
+
+if(libdecimal_BUILD_BENCHMARKS)
+    set(BENCH_OUTPUT_DIR ${CMAKE_BINARY_DIR})
+    function(add_benchmark name)
+        add_executable(bench-${name} bench/${name}.cpp)
+        set_target_properties(bench-${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BENCH_OUTPUT_DIR})
+        target_link_libraries(bench-${name} PRIVATE libdecimal::libdecimal libboostdecimal libnanobench)
+        target_compile_options(bench-${name} PRIVATE -O3 -march=native)
+    endfunction()
+
+    add_benchmark(construct-from-pair)
+    add_benchmark(decompose)
+endif()
+# ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
 # ------------------------------------------------------------------------------
 if(libdecimal_BUILD_DOCS)
