@@ -4,8 +4,7 @@
 #include <string>
 #include <string_view>
 #include <cstdint>
-
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
 
 namespace test {
     inline std::uint32_t str2bid32_raw(std::string_view str, unsigned int* flags = nullptr) {

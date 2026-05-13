@@ -55,7 +55,7 @@ target_link_libraries(libdecimal INTERFACE libdecimal::libbid_static )
 # ------------------------------------------------------------------------------
 # Installation
 # ------------------------------------------------------------------------------
-install( FILES ${CMAKE_SOURCE_DIR}/include/libdecimal.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install( FILES ${CMAKE_SOURCE_DIR}/include/decimal/* DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install( TARGETS libdecimal libbid_static EXPORT libdecimal_targets)
 install( FILES ${libbid_static_archive} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install( DIRECTORY ${libbid_static_include_dir}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libbid FILES_MATCHING PATTERN "*.h")

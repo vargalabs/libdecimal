@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <stdint.h>
 #include <doctest/all>
-#include <decimal.hpp>
+#include <decimal/bid.hpp>
 
 #define TRACE std::cerr
 #define uint128_t __uint128_t

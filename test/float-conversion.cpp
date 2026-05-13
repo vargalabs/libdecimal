@@ -7,10 +7,9 @@
 #include <cstdint>
 #include <limits>
 #include <string>
-#include <type_traits>
 
 #include <doctest/all>
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
 
 namespace test {
     using dec32_t  = math::decimal_t<std::uint32_t>;
