@@ -4,13 +4,11 @@
 
 #include <sstream>
 #include <string>
-#include <tuple>
-#include <type_traits>
-#include <limits>
 #include <format>
 
 #include <doctest/all>
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
+
 
 namespace test {
     using dec32_t = math::decimal_t<std::uint32_t>;
