@@ -10,6 +10,7 @@ nav:
   - Print: display.md
   - Operations: operations.md
   - Constants: constants.md
+  - Performance: perf.md
   - Issues: issues.md
 
 theme:
