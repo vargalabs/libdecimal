@@ -5,3 +5,5 @@
 
 add_subdirectory(doctest)
 add_subdirectory(intel-decimal-float)
+add_subdirectory(nanobench)
+add_subdirectory(boost-decimal-float)

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <doctest/all>
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
 
 namespace test {
     using dec32_t  = math::decimal_t<std::uint32_t>;

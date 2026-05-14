@@ -55,7 +55,7 @@ target_link_libraries(libdecimal INTERFACE libdecimal::libbid_static )
 # ------------------------------------------------------------------------------
 # Installation
 # ------------------------------------------------------------------------------
-install( FILES ${CMAKE_SOURCE_DIR}/include/libdecimal.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install( FILES ${CMAKE_SOURCE_DIR}/include/decimal/* DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install( TARGETS libdecimal libbid_static EXPORT libdecimal_targets)
 install( FILES ${libbid_static_archive} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install( DIRECTORY ${libbid_static_include_dir}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libbid FILES_MATCHING PATTERN "*.h")
@@ -94,6 +94,29 @@ if(libdecimal_BUILD_TESTS)
     add_test_case(import-export)
     add_test_case(constants)
     add_test_case(algebraic-identities)
+endif()
+# ------------------------------------------------------------------------------
+# Benchmarks
+# ------------------------------------------------------------------------------
+option(libdecimal_BUILD_BENCHMARKS "Build benchmarks" OFF)
+
+if(libdecimal_BUILD_BENCHMARKS)
+    set(BENCH_OUTPUT_DIR ${CMAKE_BINARY_DIR})
+    function(add_benchmark name)
+        add_executable(bench-${name} bench/${name}.cpp)
+        set_target_properties(bench-${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BENCH_OUTPUT_DIR})
+        target_link_libraries(bench-${name} PRIVATE libdecimal::libdecimal libboostdecimal libnanobench)
+        target_compile_options(bench-${name} PRIVATE -O3 -march=native)
+    endfunction()
+
+    add_benchmark(construct-from-pair)
+    add_benchmark(decompose)
+    add_benchmark(compare)
+    add_benchmark(arithmetic)
+    add_benchmark(string)
+    add_benchmark(ops-fee)
+    add_benchmark(encode-decode)
+    add_benchmark(mixed-ops)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets

@@ -40,7 +40,7 @@ inline BID_UINT128 to_bid128(unsigned __int128 x) noexcept {
 namespace math::bid {
     using uint128_t = BID_UINT128; 
     enum struct category : unsigned char {
-        positive = 0b0000, negative = 0b0001, pinf = 0b0010, ninf = 0b0011, nan = 0b0100
+        positive = 0b0000, negative = 0b0001, pinf = 0b0010, ninf = 0b0011, nan = 0b0100, zero = 0b1000
     };
     template<class T>
     inline std::string print(bool signbit, T mantissa, int exponent, char* buffer, size_t size) {

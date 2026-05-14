@@ -6,7 +6,7 @@
 #include <type_traits>
 
 #include <doctest/all>
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
 
 namespace {
     template <typename T> struct tolerance_t;

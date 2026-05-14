@@ -5,7 +5,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/all>
 
-#include "decimal.hpp"
+#include <decimal/bid.hpp>
 
 namespace {
     template <typename T>
