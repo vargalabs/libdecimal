@@ -97,6 +97,14 @@ else()
 endif()
 add_library(libdecimal::${libname} ALIAS ${libname})
 
+# libbid is a real install artifact (libdecimal's INTERFACE target links it), so
+# it must build under the default "all" target even though the thirdparty
+# subdirectory is added EXCLUDE_FROM_ALL (which exists to keep doctest / nanobench
+# / boost-decimal — used only by tests and benchmarks — out of the default build).
+# Without this, `cmake --build` followed by `cmake --install` fails to find the
+# library whenever tests are disabled (e.g. the packaging workflow).
+set_target_properties(${libname} PROPERTIES EXCLUDE_FROM_ALL OFF)
+
 target_include_directories(${libname}
     PUBLIC
         $<BUILD_INTERFACE:${src_dir}>
