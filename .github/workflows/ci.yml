@@ -49,9 +49,13 @@ jobs:
           - os: ubuntu-24.04
             compiler: clang-20
             compiler-version: 20
-          - os: macos-13
+          # Apple-Silicon runner, but cross-targets x86_64 (the only architecture
+          # Intel's DPML float128 sources support) and runs the tests via
+          # Rosetta 2. Native arm64 would require an aarch64 DPML port.
+          - os: macos-14
             compiler: apple-clang
             compiler-version: native
+            cmake-extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
           - os: windows-latest
             compiler: msvc
             compiler-version: native
@@ -108,10 +112,22 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          # Ensure Rosetta 2 is present so the cross-built x86_64 tests can run.
+          softwareupdate --install-rosetta --agree-to-license || true
           brew install --quiet ninja || true
           echo "CC=$(xcrun --find clang)" >> "$GITHUB_ENV"
           echo "CXX=$(xcrun --find clang++)" >> "$GITHUB_ENV"
           "$(xcrun --find clang++)" --version
+
+      # ---------------------------------------------------------------- Windows
+      - name: Setup MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ninja -y --no-progress
 
       # -------------------------------------------------------- configure/build
       - name: Configure (Linux / macOS)
@@ -123,15 +139,19 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -Dlibdecimal_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER="$CC" \
-            -DCMAKE_CXX_COMPILER="$CXX"
+            -DCMAKE_CXX_COMPILER="$CXX" \
+            ${{ matrix.cmake-extra }}
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: bash
         run: |
-          cmake -S . -B build `
-            -G "Visual Studio 17 2022" -A x64 `
-            -Dlibdecimal_BUILD_DOCS=OFF
+          set -euxo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            -DCMAKE_C_COMPILER=cl \
+            -DCMAKE_CXX_COMPILER=cl
 
       - name: Build
         shell: bash
