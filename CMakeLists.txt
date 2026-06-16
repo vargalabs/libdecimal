@@ -26,6 +26,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(libdecimal_BUILD_TESTS "Build tests" ${BUILD_TESTING})
 option(libdecimal_BUILD_DOCS  "Enable MkDocs documentation targets" ON)
+option(libdecimal_BUILD_SHARED_LIBS "Build Intel LIBBID as a shared library" OFF)
 
 set(git_commit_hash "unknown")
 set(git_tag "")
