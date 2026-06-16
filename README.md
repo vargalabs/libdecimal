@@ -8,10 +8,12 @@
 
 ## Build Matrix
 
-| OS / Compiler | GCC 13      | GCC 14      | GCC 15      | Clang 17      | Clang 18      | Clang 19      |Clang 20       |
-|---------------|-------------|-------------|-------------|---------------|---------------|---------------|---------------|
-| Ubuntu 22.04  |![gcc13][200]|![gcc14][201]|![gcc15][202]|![clang17][250]|![clang18][251]|![clang19][252]|![clang20][253]|
-| Ubuntu 24.04  |![gcc13][300]|![gcc14][301]|![gcc15][302]|![clang17][350]|![clang18][351]|![clang19][352]|![clang20][353]|
+| Platform | Compilers |
+|----------|-----------|
+| Ubuntu 22.04 | ![gcc-13][200] ![gcc-14][201] |
+| Ubuntu 24.04 | ![gcc-13][300] ![gcc-14][301] ![clang-18][351] ![clang-19][352] ![clang-20][353] |
+| macOS 14 (x86_64, Rosetta) | ![apple-clang][400] |
+| Windows (MSVC) | ![msvc][500] |
 
 ## libdecimal — Deterministic Decimal Arithmetic Built on Intel LIBBID
 **libdecimal** is a **header-only, production-grade decimal arithmetic library** built for systems where correctness is not negotiable. If your P&L depends on the last digit — you’re in the right place. If your connectivity stack (e.g. Interactive Brokers) already relies on Intel LIBBID — this fits naturally. This is not a “numeric playground” — it’s infrastructure. For
@@ -91,22 +93,10 @@ target_link_libraries(app PRIVATE libdecimal::libdecimal)
 
 [200]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-gcc-13.svg
 [201]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-gcc-14.svg
-[202]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-gcc-15.svg
 [300]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-gcc-13.svg
 [301]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-gcc-14.svg
-[302]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-gcc-15.svg
-[250]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-clang-17.svg
-[251]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-clang-18.svg
-[252]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-clang-19.svg
-[253]: https://vargalabs.github.io/libdecimal/badges/ubuntu-22.04-clang-20.svg
-[350]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-clang-17.svg
 [351]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-clang-18.svg
 [352]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-clang-19.svg
 [353]: https://vargalabs.github.io/libdecimal/badges/ubuntu-24.04-clang-20.svg
-[400]: https://vargalabs.github.io/libdecimal/badges/macos-13-gcc-13.svg
-[401]: https://vargalabs.github.io/libdecimal/badges/macos-13-gcc-14.svg
-[402]: https://vargalabs.github.io/libdecimal/badges/macos-13-gcc-15.svg
-[450]: https://vargalabs.github.io/libdecimal/badges/macos-13-clang-17.svg
-[451]: https://vargalabs.github.io/libdecimal/badges/macos-13-clang-18.svg
-[452]: https://vargalabs.github.io/libdecimal/badges/macos-13-clang-19.svg
-[453]: https://vargalabs.github.io/libdecimal/badges/macos-13-clang-20.svg
+[400]: https://vargalabs.github.io/libdecimal/badges/macos-14-apple-clang.svg
+[500]: https://vargalabs.github.io/libdecimal/badges/windows-latest-msvc.svg
