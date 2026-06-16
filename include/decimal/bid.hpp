@@ -13,9 +13,29 @@
 #include <type_traits>
 #include <array>
 #include "uint128.hpp"
+#include <cfloat>
 #include <bid_conf.h>
 #include <bid_functions.h>
 #include <dfp754.h>
+
+// Intel's LIBBID only provides the 80-bit `binary80` conversion entry points on
+// targets whose `long double` is the x87 80-bit extended type. Where `long
+// double` is the 64-bit IEEE double instead (notably MSVC, where they are the
+// same type), those symbols are absent, so route long-double conversions through
+// the `binary64` functions — which is exactly correct for a 64-bit long double.
+#if defined(LDBL_MANT_DIG) && (LDBL_MANT_DIG <= DBL_MANT_DIG)
+    #define libdecimal_binary80_to_bid32  __binary64_to_bid32
+    #define libdecimal_binary80_to_bid64  __binary64_to_bid64
+    #define libdecimal_binary80_to_bid128 __binary64_to_bid128
+    #define libdecimal_bid64_to_binary80  __bid64_to_binary64
+    #define libdecimal_bid128_to_binary80 __bid128_to_binary64
+#else
+    #define libdecimal_binary80_to_bid32  __binary80_to_bid32
+    #define libdecimal_binary80_to_bid64  __binary80_to_bid64
+    #define libdecimal_binary80_to_bid128 __binary80_to_bid128
+    #define libdecimal_bid64_to_binary80  __bid64_to_binary80
+    #define libdecimal_bid128_to_binary80 __bid128_to_binary80
+#endif
 
 #ifndef BID32_MAX_PRINTED_DIGITS
     #define BID32_MAX_PRINTED_DIGITS 20
@@ -231,7 +251,7 @@ namespace math {
         template<> double bid2float<uint32_t, double>(uint32_t bid){ unsigned int flags; return __bid32_to_binary64(bid, 0, &flags); }
         template<> uint32_t float2bid<float, uint32_t>(float bin){ unsigned int flags; return __binary32_to_bid32(bin, 0, &flags); }
         template<> uint32_t float2bid<double, uint32_t>(double bin){ unsigned int flags; return __binary64_to_bid32(bin, 0, &flags); }
-        template<> uint32_t float2bid<long double, uint32_t>(long double bin){ unsigned int flags; return __binary80_to_bid32(bin, 0, &flags); }
+        template<> uint32_t float2bid<long double, uint32_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid32(bin, 0, &flags); }
         template<> uint32_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid32_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint32_t str2bid(const std::string& str){ unsigned int flags; return __bid32_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint32_t bid){ return bid::display_bid32(bid); };
@@ -240,10 +260,10 @@ namespace math {
         template<> uint64_t dpd2bid(uint64_t dpd){ return __bid_dpd_to_bid64(dpd); }
         template<> uint64_t uint2bid(uint64_t significand, int exponent){ return bid::uint64_to_bid64(significand, exponent); }
         template<> uint64_t zero(){ return 0x31C0000000000000ULL; }
-        template<> long double bid2float<uint64_t, long double>(uint64_t bid){ unsigned int flags; return __bid64_to_binary80(bid, 0, &flags); }
+        template<> long double bid2float<uint64_t, long double>(uint64_t bid){ unsigned int flags; return libdecimal_bid64_to_binary80(bid, 0, &flags); }
         template<> uint64_t float2bid<float, uint64_t>(float bin){ unsigned int flags; return __binary32_to_bid64(bin, 0, &flags); }
         template<> uint64_t float2bid<double, uint64_t>(double bin){ unsigned int flags; return __binary64_to_bid64(bin, 0, &flags); }
-        template<> uint64_t float2bid<long double, uint64_t>(long double bin){ unsigned int flags; return __binary80_to_bid64(bin, 0, &flags); }
+        template<> uint64_t float2bid<long double, uint64_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid64(bin, 0, &flags); }
         template<> uint64_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid64_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint64_t str2bid(const std::string& str){ unsigned int flags; return __bid64_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint64_t bid){ return bid::display_bid64(bid); };
@@ -252,10 +272,10 @@ namespace math {
         template<> uint128_t dpd2bid(uint128_t dpd){ return __bid_dpd_to_bid128(dpd); }
         template<> uint128_t uint2bid(uint128_t significand, int exponent){ return bid::uint128_to_bid128(significand, exponent); }
         template<> uint128_t zero(){ return {}; } // TODO:  
-        template<> long double bid2float<uint128_t, long double>(uint128_t bid){ unsigned int flags; return __bid128_to_binary80(bid, 0, &flags); }
+        template<> long double bid2float<uint128_t, long double>(uint128_t bid){ unsigned int flags; return libdecimal_bid128_to_binary80(bid, 0, &flags); }
         template<> uint128_t float2bid<float, uint128_t>(float bin){ unsigned int flags; return __binary32_to_bid128(bin, 0, &flags); }
         template<> uint128_t float2bid<double, uint128_t>(double bin){ unsigned int flags; return __binary64_to_bid128(bin, 0, &flags); }
-        template<> uint128_t float2bid<long double, uint128_t>(long double bin){ unsigned int flags; return __binary80_to_bid128(bin, 0, &flags); }
+        template<> uint128_t float2bid<long double, uint128_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid128(bin, 0, &flags); }
         template<> uint128_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid128_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint128_t str2bid(const std::string& str){ unsigned int flags; return __bid128_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint128_t bid){ return bid::display_bid128(bid); };

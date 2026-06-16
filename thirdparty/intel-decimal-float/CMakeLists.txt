@@ -48,8 +48,9 @@ set(bid_f128_sources
 #   * Linux  : LINUX / linux   (unchanged from the original build)
 #   * macOS  : nothing -- op_system.h / bid_conf.h key off __APPLE__ -> darwin
 #   * Windows: WINDOWS (core) / WNT (DPML float128, -> OP_SYSTEM wnt)
-# NOTE: the float128 (DPML) sources only ship an amd64 code path, so an Apple
-# runner must be Intel (macos-13); Apple Silicon would need an aarch64 port.
+# NOTE: the float128 (DPML) sources only ship an amd64 code path, so macOS must
+# be built for x86_64 (CMAKE_OSX_ARCHITECTURES=x86_64, run under Rosetta on the
+# Apple-Silicon CI runners); native Apple Silicon would need an aarch64 port.
 if(WIN32)
     set(bid_core_os WINDOWS)
     set(bid_f128_os WNT)
@@ -65,10 +66,13 @@ else()
 endif()
 
 # Intel's sources are intentionally warning-noisy; silence them per toolchain.
+# Modern Clang (notably Apple Clang) promotes implicit function/int declarations
+# to hard errors that `-w` does not downgrade, and the DPML sources rely on a few
+# (e.g. raise() without <signal.h>), so disable those diagnostics explicitly.
 if(MSVC)
-    set(bid_warn_flag /w)
+    set(bid_warn_flags /w)
 else()
-    set(bid_warn_flag -w)
+    set(bid_warn_flags -w -Wno-implicit-function-declaration -Wno-implicit-int)
 endif()
 
 add_library(libbid_core_obj OBJECT ${bid_core_sources})
@@ -86,7 +90,7 @@ target_compile_definitions(libbid_core_obj PRIVATE
 if(bid_core_os)
     target_compile_definitions(libbid_core_obj PRIVATE ${bid_core_os})
 endif()
-target_compile_options(libbid_core_obj PRIVATE ${bid_warn_flag})
+target_compile_options(libbid_core_obj PRIVATE ${bid_warn_flags})
 set_target_properties(libbid_core_obj PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
@@ -107,7 +111,7 @@ endif()
 if(bid_f128_cc)
     target_compile_definitions(libbid_f128_obj PRIVATE ${bid_f128_cc})
 endif()
-target_compile_options(libbid_f128_obj PRIVATE ${bid_warn_flag})
+target_compile_options(libbid_f128_obj PRIVATE ${bid_warn_flags})
 set_target_properties(libbid_f128_obj PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
