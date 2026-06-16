@@ -12,6 +12,7 @@
 #include <string_view>
 #include <type_traits>
 #include <array>
+#include "uint128.hpp"
 #include <bid_conf.h>
 #include <bid_functions.h>
 #include <dfp754.h>
@@ -34,7 +35,7 @@ inline bool operator==(const BID_UINT128& a, const BID_UINT128& b) noexcept {
 inline bool operator>(const BID_UINT128& a, const BID_UINT128& b) {
     return (a.w[1] > b.w[1]) || (a.w[1] == b.w[1] && a.w[0] > b.w[0]);
 }
-inline BID_UINT128 to_bid128(unsigned __int128 x) noexcept {
+inline BID_UINT128 to_bid128(math::uint128 x) noexcept {
     return {static_cast<std::uint64_t>(x), static_cast<std::uint64_t>(x >> 64)};
 }
 namespace math::bid {
@@ -49,7 +50,7 @@ namespace math::bid {
         if(exponent > 0) // suffix with zeroes only 
             while(--exponent) buffer[i--] = '0'; 
         do {
-            buffer[i--] = (mantissa % 10) + '0'; 
+            buffer[i--] = static_cast<char>('0' + static_cast<int>(static_cast<std::uint64_t>(mantissa % 10)));
             mantissa /= 10;
             if(exponent < 0 && !++exponent) buffer[i--] = '.';
         } while (mantissa != 0 && i > 0);
@@ -144,23 +145,23 @@ namespace math::bid {
             default: return print(kind != category::positive, mantissa, exponent, buffer.data(), buffer.size());
         }
     }
-    inline std::tuple<category, unsigned __int128, int16_t> decompose(const BID_UINT128& bid) noexcept {
+    inline std::tuple<category, math::uint128, int16_t> decompose(const BID_UINT128& bid) noexcept {
         constexpr int32_t bias = 6176;
         constexpr uint64_t sign_mask = 0x8000'0000'0000'0000ull, combination_shift = 46, combination_mask  = (1ull << 17) - 1,
             top5_shift = 12, steering_mask = 0x3ull << 15, steering_11 = 0x3ull << 15, top5_inf = 0x1eull, top5_nan = 0x1full,
             coeff_small_hi_mask = (1ull << 49) - 1, coeff_large_hi_mask = (1ull << 47) - 1, exponent_mask = (1ull << 14) - 1;
-        constexpr unsigned __int128 max_coeff = (static_cast<unsigned __int128>(0x0001ed09bead87c0ull) << 64) | static_cast<unsigned __int128>(0x378d8e63ffffffffull);
+        constexpr math::uint128 max_coeff = (static_cast<math::uint128>(0x0001ed09bead87c0ull) << 64) | static_cast<math::uint128>(0x378d8e63ffffffffull);
         const uint64_t hi = bid.w[1], lo = bid.w[0],  combination = (hi >> combination_shift) & combination_mask;
         const uint64_t top5 = combination >> top5_shift;
         const bool sign_bit = (hi & sign_mask) != 0;
         if ((combination & steering_mask) != steering_11) {
             const int32_t exponent = static_cast<int32_t>(combination >> 3) - bias;
-            const unsigned __int128 mantissa = (static_cast<unsigned __int128>(hi & coeff_small_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+            const math::uint128 mantissa = (static_cast<math::uint128>(hi & coeff_small_hi_mask) << 64) | static_cast<math::uint128>(lo);
             return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
         } else if (top5 == top5_nan) return {category::nan, 0, 0};
         if (top5 == top5_inf) return {sign_bit ? category::ninf : category::pinf, 0, 0};
         const int32_t exponent = static_cast<int32_t>((combination >> 1) & exponent_mask) - bias; // finite, large coefficient branch (implicit leading "100")
-        unsigned __int128 mantissa = (static_cast<unsigned __int128>(1) << 113) | (static_cast<unsigned __int128>(hi & coeff_large_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+        math::uint128 mantissa = (static_cast<math::uint128>(1) << 113) | (static_cast<math::uint128>(hi & coeff_large_hi_mask) << 64) | static_cast<math::uint128>(lo);
         if (mantissa > max_coeff) mantissa = 0; // non-canonical coefficients decode as zero
         return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
     }
@@ -307,7 +308,7 @@ namespace math {
     #undef sigma_comparison_operator
     #undef sigma_arithmetic_operator
 
-    #define sigma_decimal_literal(type, literal) inline decimal_t<type> operator""##literal(const char* characters) { \
+    #define sigma_decimal_literal(type, literal) inline decimal_t<type> operator"" literal(const char* characters) { \
             std::string data(characters);                                                                             \
             data.erase(std::remove(data.begin(), data.end(), '\''), data.end());                                      \
             return decimal_t<type>(data);                                                                             \

@@ -8,6 +8,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include "uint128.hpp"
 #include "bid.hpp"
 
 namespace math::fixed::impl {
@@ -25,7 +26,7 @@ namespace math::fixed::impl {
     template<unsigned_integral_t element_t, int exponent> struct traits_t {
         static constexpr int exponent_v = exponent;
         static constexpr unsigned scale_v = exponent < 0 ? static_cast<unsigned>(-exponent) : 0;
-        using wide_t = std::conditional_t<(sizeof(element_t) <= sizeof(std::uint32_t)), std::uint64_t, unsigned __int128>;
+        using wide_t = std::conditional_t<(sizeof(element_t) <= sizeof(std::uint32_t)), std::uint64_t, math::uint128>;
 
         static constexpr wide_t pow10() {
             wide_t value = 1;
