@@ -79,6 +79,7 @@ add_library(${libname} STATIC
     $<TARGET_OBJECTS:libbid_core_obj>
     $<TARGET_OBJECTS:libbid_f128_obj>
 )
+set_target_properties(${libname} PROPERTIES OUTPUT_NAME bid_static)
 add_library(libdecimal::${libname} ALIAS ${libname})
 
 target_include_directories(${libname}
@@ -87,5 +88,4 @@ target_include_directories(${libname}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/libbid>
 )
 
-set(libbid_static_archive     $<TARGET_FILE:${libname}> PARENT_SCOPE)
-set(libbid_static_include_dir "${src_dir}"              PARENT_SCOPE)
+set(libbid_static_include_dir "${src_dir}" CACHE PATH "Intel LIBBID public header source directory" FORCE)
