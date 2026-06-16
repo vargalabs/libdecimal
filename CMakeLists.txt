@@ -55,15 +55,14 @@ target_link_libraries(libdecimal INTERFACE libdecimal::libbid_static )
 # ------------------------------------------------------------------------------
 # Installation
 # ------------------------------------------------------------------------------
-install( FILES ${CMAKE_SOURCE_DIR}/include/decimal/* DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install( DIRECTORY ${CMAKE_SOURCE_DIR}/include/decimal DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install( TARGETS libdecimal libbid_static EXPORT libdecimal_targets)
-install( FILES ${libbid_static_archive} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install( DIRECTORY ${libbid_static_include_dir}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libbid FILES_MATCHING PATTERN "*.h")
 install( EXPORT libdecimal_targets FILE libdecimal_targets.cmake NAMESPACE libdecimal:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal)
 
-configure_package_config_file( ${CMAKE_SOURCE_DIR}/cmake/libdecimal_config.cmake.in ${CMAKE_BINARY_DIR}/libdecimal_config.cmake INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
-write_basic_package_version_file( ${CMAKE_BINARY_DIR}/libdecimal_config_version.cmake VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion )
-install( FILES ${CMAKE_BINARY_DIR}/libdecimal_config.cmake ${CMAKE_BINARY_DIR}/libdecimal_config_version.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
+configure_package_config_file( ${CMAKE_SOURCE_DIR}/cmake/libdecimal_config.cmake.in ${CMAKE_BINARY_DIR}/libdecimal-config.cmake INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
+write_basic_package_version_file( ${CMAKE_BINARY_DIR}/libdecimal-config-version.cmake VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion )
+install( FILES ${CMAKE_BINARY_DIR}/libdecimal-config.cmake ${CMAKE_BINARY_DIR}/libdecimal-config-version.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
 # ------------------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------------------

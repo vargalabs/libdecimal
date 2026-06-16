@@ -87,5 +87,4 @@ target_include_directories(${libname}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/libbid>
 )
 
-set(libbid_static_archive     $<TARGET_FILE:${libname}> PARENT_SCOPE)
-set(libbid_static_include_dir "${src_dir}"              PARENT_SCOPE)
+set(libbid_static_include_dir "${src_dir}" CACHE PATH "Intel LIBBID public header source directory" FORCE)
