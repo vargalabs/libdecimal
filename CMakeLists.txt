@@ -4,7 +4,7 @@
 # Contact: info@vargalabs.com
 
 cmake_minimum_required(VERSION 3.22)
-project(libdecimal VERSION 0.1.0 DESCRIPTION "Deterministic Decimal Arithmetic Built on Intel LIBBID"  LANGUAGES CXX)
+project(libdecimal VERSION 2.2.3 DESCRIPTION "Deterministic Decimal Arithmetic Built on Intel LIBBID"  LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -26,6 +26,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(libdecimal_BUILD_TESTS "Build tests" ${BUILD_TESTING})
 option(libdecimal_BUILD_DOCS  "Enable MkDocs documentation targets" ON)
+option(libdecimal_BUILD_EXAMPLES "Build example programs" OFF)
 
 set(git_commit_hash "unknown")
 set(git_tag "")
@@ -55,15 +56,71 @@ target_link_libraries(libdecimal INTERFACE libdecimal::libbid_static )
 # ------------------------------------------------------------------------------
 # Installation
 # ------------------------------------------------------------------------------
-install( FILES ${CMAKE_SOURCE_DIR}/include/decimal/* DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install( DIRECTORY ${CMAKE_SOURCE_DIR}/include/decimal DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install( TARGETS libdecimal libbid_static EXPORT libdecimal_targets)
-install( FILES ${libbid_static_archive} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install( DIRECTORY ${libbid_static_include_dir}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libbid FILES_MATCHING PATTERN "*.h")
 install( EXPORT libdecimal_targets FILE libdecimal_targets.cmake NAMESPACE libdecimal:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal)
 
-configure_package_config_file( ${CMAKE_SOURCE_DIR}/cmake/libdecimal_config.cmake.in ${CMAKE_BINARY_DIR}/libdecimal_config.cmake INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
-write_basic_package_version_file( ${CMAKE_BINARY_DIR}/libdecimal_config_version.cmake VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion )
-install( FILES ${CMAKE_BINARY_DIR}/libdecimal_config.cmake ${CMAKE_BINARY_DIR}/libdecimal_config_version.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
+configure_package_config_file( ${CMAKE_SOURCE_DIR}/cmake/libdecimal_config.cmake.in ${CMAKE_BINARY_DIR}/libdecimal-config.cmake INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
+write_basic_package_version_file( ${CMAKE_BINARY_DIR}/libdecimal-config-version.cmake VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion )
+install( FILES ${CMAKE_BINARY_DIR}/libdecimal-config.cmake ${CMAKE_BINARY_DIR}/libdecimal-config-version.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdecimal )
+# ------------------------------------------------------------------------------
+# CPack packaging — native installers (.deb / .rpm / macOS .pkg / Windows .exe)
+# ------------------------------------------------------------------------------
+# libdecimal ships headers + the Intel LIBBID static library + the CMake package
+# files; there are no shared-library runtime dependencies. The Intel DPML float128
+# sources are x86_64-only, so packages are produced for amd64 / x86_64 only.
+set(CPACK_PACKAGE_NAME "libdecimal")
+set(CPACK_PACKAGE_VENDOR "VargaLABS")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+
+# CI passes -Dlibdecimal_VERSION_OVERRIDE=X.Y.Z (derived from the release tag) so
+# installer filenames track the tag instead of the frozen project() version.
+if(DEFINED libdecimal_VERSION_OVERRIDE AND NOT libdecimal_VERSION_OVERRIDE STREQUAL "")
+  if(libdecimal_VERSION_OVERRIDE MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+    set(CPACK_PACKAGE_VERSION       "${libdecimal_VERSION_OVERRIDE}")
+    set(CPACK_PACKAGE_VERSION_MAJOR "${CMAKE_MATCH_1}")
+    set(CPACK_PACKAGE_VERSION_MINOR "${CMAKE_MATCH_2}")
+    set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_MATCH_3}")
+  else()
+    message(FATAL_ERROR "libdecimal_VERSION_OVERRIDE='${libdecimal_VERSION_OVERRIDE}' is not X.Y.Z")
+  endif()
+endif()
+
+if(NOT CPACK_PACKAGE_VERSION)
+  set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+endif()
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Deterministic decimal arithmetic built on Intel LIBBID")
+set(CPACK_PACKAGE_CONTACT "info@vargalabs.com")
+set(CPACK_PACKAGE_LICENSE "MIT")
+configure_file(${CMAKE_SOURCE_DIR}/LICENSE ${CMAKE_BINARY_DIR}/LICENSE.txt COPYONLY)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE.txt")
+set(CPACK_MONOLITHIC_INSTALL 1)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
+  set(CPACK_DEBIAN_PACKAGE_SECTION "libdevel")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+  set(CPACK_DEBIAN_FILE_NAME "libdecimal-${CPACK_PACKAGE_VERSION}-Linux-amd64.deb")
+  set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+  set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
+  set(CPACK_RPM_PACKAGE_ARCHITECTURE "x86_64")
+  set(CPACK_RPM_FILE_NAME "libdecimal-${CPACK_PACKAGE_VERSION}-Linux-x86_64.rpm")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(CPACK_GENERATOR "productbuild")
+  set(CPACK_PRODUCTBUILD_IDENTIFIER "com.vargalabs.libdecimal")
+  set(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local")
+  set(CPACK_PACKAGE_FILE_NAME "libdecimal-${CPACK_PACKAGE_VERSION}-macOS-x86_64")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(CPACK_GENERATOR "NSIS")
+  set(CPACK_NSIS_PACKAGE_NAME "libdecimal")
+  set(CPACK_NSIS_INSTALL_ROOT "C:\\\\Program Files\\\\libdecimal")
+  set(CPACK_PACKAGE_FILE_NAME "libdecimal-${CPACK_PACKAGE_VERSION}-Windows-x64")
+endif()
+
+include(CPack)
 # ------------------------------------------------------------------------------
 # Tests
 # ------------------------------------------------------------------------------
@@ -84,6 +141,7 @@ if(libdecimal_BUILD_TESTS)
     endfunction()
 
     add_test_case(example)
+    add_test_case(uint128)
     add_test_case(decimal)
     add_test_case(decimal-bid-spec)
     add_test_case(decimal-display)
@@ -117,6 +175,12 @@ if(libdecimal_BUILD_BENCHMARKS)
     add_benchmark(ops-fee)
     add_benchmark(encode-decode)
     add_benchmark(mixed-ops)
+endif()
+# ------------------------------------------------------------------------------
+# Examples
+# ------------------------------------------------------------------------------
+if(libdecimal_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets

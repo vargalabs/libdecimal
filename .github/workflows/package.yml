@@ -1,0 +1,179 @@
+name: Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: Linux-x86_64
+          - os: macos-14
+            name: macOS-x86_64
+            cmake-extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
+          - os: windows-latest
+            name: Windows-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc-14 g++-14 rpm file
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          brew install --quiet ninja || true
+          echo "CC=$(xcrun --find clang)" >> "$GITHUB_ENV"
+          echo "CXX=$(xcrun --find clang++)" >> "$GITHUB_ENV"
+
+      - name: Setup MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja + NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ninja nsis -y --no-progress
+
+      - name: Compute version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"   # use project() version for manual runs
+          fi
+
+      - name: Configure
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [[ "${{ runner.os }}" == "Windows" ]]; then cc=cl; cxx=cl; else cc="$CC"; cxx="$CXX"; fi
+          ver_arg=""
+          [[ -n "${{ steps.ver.outputs.version }}" ]] && ver_arg="-Dlibdecimal_VERSION_OVERRIDE=${{ steps.ver.outputs.version }}"
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$cc" \
+            -DCMAKE_CXX_COMPILER="$cxx" \
+            -Dlibdecimal_BUILD_TESTS=OFF \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            $ver_arg \
+            ${{ matrix.cmake-extra }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --parallel
+
+      - name: Package
+        shell: bash
+        working-directory: build
+        run: |
+          set -euxo pipefail
+          case "${{ runner.os }}" in
+            Linux)   cpack -G DEB; cpack -G RPM ;;
+            macOS)
+              ver="${{ steps.ver.outputs.version }}"
+              [[ -n "$ver" ]] || ver=$(sed -n 's/.*project(libdecimal VERSION \([0-9.]*\).*/\1/p' "$GITHUB_WORKSPACE/CMakeLists.txt")
+              rm -rf _pkgroot
+              cmake --install . --prefix "$PWD/_pkgroot/usr/local"
+              pkgbuild --root "$PWD/_pkgroot" --identifier com.vargalabs.libdecimal \
+                --version "$ver" --install-location / "libdecimal-${ver}-macOS-x86_64.pkg" ;;
+            Windows) cpack -G NSIS ;;
+          esac
+          ls -la libdecimal-*
+
+      # One clearly-named artifact per installer (the publish job globs libdecimal-*).
+      - name: Upload .deb installer
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-deb-amd64
+          path: build/libdecimal-*.deb
+          if-no-files-found: error
+
+      - name: Upload .rpm installer
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-rpm-x86_64
+          path: build/libdecimal-*.rpm
+          if-no-files-found: error
+
+      - name: Upload .pkg installer
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-macos-pkg-x86_64
+          path: build/libdecimal-*.pkg
+          if-no-files-found: error
+
+      - name: Upload .exe installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-windows-exe-x64
+          path: build/libdecimal-*.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [package]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Download all package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: libdecimal-*
+          merge-multiple: true
+
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          repo="${{ github.repository }}"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release upload "$tag" artifacts/* --clobber --repo "$repo"
+          else
+            gh release create "$tag" artifacts/* \
+              --title "libdecimal ${tag}" \
+              --generate-notes \
+              --repo "$repo"
+          fi
