@@ -2,7 +2,9 @@
  * Copyright © 2017–2025 VargaLABS, Toronto, ON, Canada 🇨🇦 */
  
 #pragma once
-#include <stdfloat>
+#if __has_include(<stdfloat>)
+#include <stdfloat>  // C++23; absent from Apple Clang's libc++. Types are unused.
+#endif
 #include <format>
 #include <iostream>
 #include <algorithm>
@@ -12,9 +14,30 @@
 #include <string_view>
 #include <type_traits>
 #include <array>
+#include "uint128.hpp"
+#include <cfloat>
 #include <bid_conf.h>
 #include <bid_functions.h>
 #include <dfp754.h>
+
+// Intel's LIBBID only provides the 80-bit `binary80` conversion entry points on
+// targets whose `long double` is the x87 80-bit extended type. Where `long
+// double` is the 64-bit IEEE double instead (notably MSVC, where they are the
+// same type), those symbols are absent, so route long-double conversions through
+// the `binary64` functions — which is exactly correct for a 64-bit long double.
+#if defined(LDBL_MANT_DIG) && (LDBL_MANT_DIG <= DBL_MANT_DIG)
+    #define libdecimal_binary80_to_bid32  __binary64_to_bid32
+    #define libdecimal_binary80_to_bid64  __binary64_to_bid64
+    #define libdecimal_binary80_to_bid128 __binary64_to_bid128
+    #define libdecimal_bid64_to_binary80  __bid64_to_binary64
+    #define libdecimal_bid128_to_binary80 __bid128_to_binary64
+#else
+    #define libdecimal_binary80_to_bid32  __binary80_to_bid32
+    #define libdecimal_binary80_to_bid64  __binary80_to_bid64
+    #define libdecimal_binary80_to_bid128 __binary80_to_bid128
+    #define libdecimal_bid64_to_binary80  __bid64_to_binary80
+    #define libdecimal_bid128_to_binary80 __bid128_to_binary80
+#endif
 
 #ifndef BID32_MAX_PRINTED_DIGITS
     #define BID32_MAX_PRINTED_DIGITS 20
@@ -34,7 +57,7 @@ inline bool operator==(const BID_UINT128& a, const BID_UINT128& b) noexcept {
 inline bool operator>(const BID_UINT128& a, const BID_UINT128& b) {
     return (a.w[1] > b.w[1]) || (a.w[1] == b.w[1] && a.w[0] > b.w[0]);
 }
-inline BID_UINT128 to_bid128(unsigned __int128 x) noexcept {
+inline BID_UINT128 to_bid128(math::uint128 x) noexcept {
     return {static_cast<std::uint64_t>(x), static_cast<std::uint64_t>(x >> 64)};
 }
 namespace math::bid {
@@ -49,7 +72,7 @@ namespace math::bid {
         if(exponent > 0) // suffix with zeroes only 
             while(--exponent) buffer[i--] = '0'; 
         do {
-            buffer[i--] = (mantissa % 10) + '0'; 
+            buffer[i--] = static_cast<char>('0' + static_cast<int>(static_cast<std::uint64_t>(mantissa % 10)));
             mantissa /= 10;
             if(exponent < 0 && !++exponent) buffer[i--] = '.';
         } while (mantissa != 0 && i > 0);
@@ -144,23 +167,23 @@ namespace math::bid {
             default: return print(kind != category::positive, mantissa, exponent, buffer.data(), buffer.size());
         }
     }
-    inline std::tuple<category, unsigned __int128, int16_t> decompose(const BID_UINT128& bid) noexcept {
+    inline std::tuple<category, math::uint128, int16_t> decompose(const BID_UINT128& bid) noexcept {
         constexpr int32_t bias = 6176;
         constexpr uint64_t sign_mask = 0x8000'0000'0000'0000ull, combination_shift = 46, combination_mask  = (1ull << 17) - 1,
             top5_shift = 12, steering_mask = 0x3ull << 15, steering_11 = 0x3ull << 15, top5_inf = 0x1eull, top5_nan = 0x1full,
             coeff_small_hi_mask = (1ull << 49) - 1, coeff_large_hi_mask = (1ull << 47) - 1, exponent_mask = (1ull << 14) - 1;
-        constexpr unsigned __int128 max_coeff = (static_cast<unsigned __int128>(0x0001ed09bead87c0ull) << 64) | static_cast<unsigned __int128>(0x378d8e63ffffffffull);
+        constexpr math::uint128 max_coeff = (static_cast<math::uint128>(0x0001ed09bead87c0ull) << 64) | static_cast<math::uint128>(0x378d8e63ffffffffull);
         const uint64_t hi = bid.w[1], lo = bid.w[0],  combination = (hi >> combination_shift) & combination_mask;
         const uint64_t top5 = combination >> top5_shift;
         const bool sign_bit = (hi & sign_mask) != 0;
         if ((combination & steering_mask) != steering_11) {
             const int32_t exponent = static_cast<int32_t>(combination >> 3) - bias;
-            const unsigned __int128 mantissa = (static_cast<unsigned __int128>(hi & coeff_small_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+            const math::uint128 mantissa = (static_cast<math::uint128>(hi & coeff_small_hi_mask) << 64) | static_cast<math::uint128>(lo);
             return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
         } else if (top5 == top5_nan) return {category::nan, 0, 0};
         if (top5 == top5_inf) return {sign_bit ? category::ninf : category::pinf, 0, 0};
         const int32_t exponent = static_cast<int32_t>((combination >> 1) & exponent_mask) - bias; // finite, large coefficient branch (implicit leading "100")
-        unsigned __int128 mantissa = (static_cast<unsigned __int128>(1) << 113) | (static_cast<unsigned __int128>(hi & coeff_large_hi_mask) << 64) | static_cast<unsigned __int128>(lo);
+        math::uint128 mantissa = (static_cast<math::uint128>(1) << 113) | (static_cast<math::uint128>(hi & coeff_large_hi_mask) << 64) | static_cast<math::uint128>(lo);
         if (mantissa > max_coeff) mantissa = 0; // non-canonical coefficients decode as zero
         return { sign_bit ? category::negative : category::positive, mantissa, static_cast<int16_t>(exponent)};
     }
@@ -230,7 +253,7 @@ namespace math {
         template<> double bid2float<uint32_t, double>(uint32_t bid){ unsigned int flags; return __bid32_to_binary64(bid, 0, &flags); }
         template<> uint32_t float2bid<float, uint32_t>(float bin){ unsigned int flags; return __binary32_to_bid32(bin, 0, &flags); }
         template<> uint32_t float2bid<double, uint32_t>(double bin){ unsigned int flags; return __binary64_to_bid32(bin, 0, &flags); }
-        template<> uint32_t float2bid<long double, uint32_t>(long double bin){ unsigned int flags; return __binary80_to_bid32(bin, 0, &flags); }
+        template<> uint32_t float2bid<long double, uint32_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid32(bin, 0, &flags); }
         template<> uint32_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid32_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint32_t str2bid(const std::string& str){ unsigned int flags; return __bid32_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint32_t bid){ return bid::display_bid32(bid); };
@@ -239,10 +262,10 @@ namespace math {
         template<> uint64_t dpd2bid(uint64_t dpd){ return __bid_dpd_to_bid64(dpd); }
         template<> uint64_t uint2bid(uint64_t significand, int exponent){ return bid::uint64_to_bid64(significand, exponent); }
         template<> uint64_t zero(){ return 0x31C0000000000000ULL; }
-        template<> long double bid2float<uint64_t, long double>(uint64_t bid){ unsigned int flags; return __bid64_to_binary80(bid, 0, &flags); }
+        template<> long double bid2float<uint64_t, long double>(uint64_t bid){ unsigned int flags; return libdecimal_bid64_to_binary80(bid, 0, &flags); }
         template<> uint64_t float2bid<float, uint64_t>(float bin){ unsigned int flags; return __binary32_to_bid64(bin, 0, &flags); }
         template<> uint64_t float2bid<double, uint64_t>(double bin){ unsigned int flags; return __binary64_to_bid64(bin, 0, &flags); }
-        template<> uint64_t float2bid<long double, uint64_t>(long double bin){ unsigned int flags; return __binary80_to_bid64(bin, 0, &flags); }
+        template<> uint64_t float2bid<long double, uint64_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid64(bin, 0, &flags); }
         template<> uint64_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid64_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint64_t str2bid(const std::string& str){ unsigned int flags; return __bid64_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint64_t bid){ return bid::display_bid64(bid); };
@@ -251,10 +274,10 @@ namespace math {
         template<> uint128_t dpd2bid(uint128_t dpd){ return __bid_dpd_to_bid128(dpd); }
         template<> uint128_t uint2bid(uint128_t significand, int exponent){ return bid::uint128_to_bid128(significand, exponent); }
         template<> uint128_t zero(){ return {}; } // TODO:  
-        template<> long double bid2float<uint128_t, long double>(uint128_t bid){ unsigned int flags; return __bid128_to_binary80(bid, 0, &flags); }
+        template<> long double bid2float<uint128_t, long double>(uint128_t bid){ unsigned int flags; return libdecimal_bid128_to_binary80(bid, 0, &flags); }
         template<> uint128_t float2bid<float, uint128_t>(float bin){ unsigned int flags; return __binary32_to_bid128(bin, 0, &flags); }
         template<> uint128_t float2bid<double, uint128_t>(double bin){ unsigned int flags; return __binary64_to_bid128(bin, 0, &flags); }
-        template<> uint128_t float2bid<long double, uint128_t>(long double bin){ unsigned int flags; return __binary80_to_bid128(bin, 0, &flags); }
+        template<> uint128_t float2bid<long double, uint128_t>(long double bin){ unsigned int flags; return libdecimal_binary80_to_bid128(bin, 0, &flags); }
         template<> uint128_t str2bid(std::string_view str){ unsigned int flags; std::string tmp{str}; return __bid128_from_string(const_cast<char*>(tmp.data()), 0, &flags); }
         template<> uint128_t str2bid(const std::string& str){ unsigned int flags; return __bid128_from_string(const_cast<char*>(str.data()), 0, &flags); }
         template<> std::string bid2str(uint128_t bid){ return bid::display_bid128(bid); };
@@ -307,7 +330,7 @@ namespace math {
     #undef sigma_comparison_operator
     #undef sigma_arithmetic_operator
 
-    #define sigma_decimal_literal(type, literal) inline decimal_t<type> operator""##literal(const char* characters) { \
+    #define sigma_decimal_literal(type, literal) inline decimal_t<type> operator"" literal(const char* characters) { \
             std::string data(characters);                                                                             \
             data.erase(std::remove(data.begin(), data.end(), '\''), data.end());                                      \
             return decimal_t<type>(data);                                                                             \

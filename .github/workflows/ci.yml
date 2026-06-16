@@ -164,22 +164,75 @@ jobs:
         shell: bash
         run: ctest --test-dir build -C Release --output-on-failure
 
-      # Validate the install rules and publish the install tree (headers +
-      # libdecimal CMake package + Intel LIBBID static library) per platform.
-      - name: Install
-        if: matrix.artifact
+      # Build native installers (.deb/.rpm on Linux, .pkg on macOS, .exe on
+      # Windows) via CPack on one representative leg per OS. This validates both
+      # the install rules and the packaging, and publishes the installers as CI
+      # artifacts. x86_64 / amd64 only (Intel DPML constraint).
+      - name: Install packaging tools (Linux)
+        if: matrix.artifact && runner.os == 'Linux'
         shell: bash
         run: |
           set -euxo pipefail
-          cmake --install build --config Release --prefix "${RUNNER_TEMP}/libdecimal-install"
-          find "${RUNNER_TEMP}/libdecimal-install" -type f | sort
+          sudo apt-get update
+          sudo apt-get install -y rpm file
 
-      - name: Upload install artifact
+      - name: Install NSIS (Windows)
+        if: matrix.artifact && runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build installers
         if: matrix.artifact
+        shell: bash
+        working-directory: build
+        run: |
+          set -euxo pipefail
+          case "${{ runner.os }}" in
+            Linux)   cpack -G DEB; cpack -G RPM ;;
+            macOS)
+              # CPack's productbuild generator yields an empty payload here, so
+              # build the .pkg with the native pkgbuild tool from the install tree.
+              ver=$(sed -n 's/.*project(libdecimal VERSION \([0-9.]*\).*/\1/p' "$GITHUB_WORKSPACE/CMakeLists.txt")
+              : "${ver:=0.1.0}"
+              rm -rf _pkgroot
+              cmake --install . --prefix "$PWD/_pkgroot/usr/local"
+              pkgbuild --root "$PWD/_pkgroot" --identifier com.vargalabs.libdecimal \
+                --version "$ver" --install-location / "libdecimal-${ver}-macOS-x86_64.pkg" ;;
+            Windows) cpack -G NSIS ;;
+          esac
+          ls -la libdecimal-* || true
+
+      # One clearly-named artifact per installer so each is visible on its own.
+      - name: Upload .deb installer
+        if: matrix.artifact && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: libdecimal-install-${{ matrix.os }}-${{ matrix.compiler }}
-          path: ${{ runner.temp }}/libdecimal-install
+          name: libdecimal-deb-amd64
+          path: build/libdecimal-*.deb
+          if-no-files-found: error
+
+      - name: Upload .rpm installer
+        if: matrix.artifact && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-rpm-x86_64
+          path: build/libdecimal-*.rpm
+          if-no-files-found: error
+
+      - name: Upload .pkg installer
+        if: matrix.artifact && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-macos-pkg-x86_64
+          path: build/libdecimal-*.pkg
+          if-no-files-found: error
+
+      - name: Upload .exe installer
+        if: matrix.artifact && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-windows-exe-x64
+          path: build/libdecimal-*.exe
           if-no-files-found: error
 
       - name: Record badge status

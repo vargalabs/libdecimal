@@ -31,7 +31,7 @@ jobs:
             name: macOS-x86_64
             cmake-extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
           - os: windows-latest
-            name: Windows-x86_64
+            name: Windows-x64
 
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc-14 g++-14
+          sudo apt-get install -y cmake ninja-build gcc-14 g++-14 rpm file
           echo "CC=gcc-14" >> "$GITHUB_ENV"
           echo "CXX=g++-14" >> "$GITHUB_ENV"
 
@@ -62,10 +62,10 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Ninja (Windows)
+      - name: Install Ninja + NSIS (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install ninja -y --no-progress
+        run: choco install ninja nsis -y --no-progress
 
       - name: Compute version
         id: ver
@@ -74,62 +74,78 @@ jobs:
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=0.0.0-dev" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"   # use project() version for manual runs
           fi
 
       - name: Configure
         shell: bash
         run: |
           set -euxo pipefail
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cc=cl; cxx=cl
-          else
-            cc="$CC"; cxx="$CXX"
-          fi
+          if [[ "${{ runner.os }}" == "Windows" ]]; then cc=cl; cxx=cl; else cc="$CC"; cxx="$CXX"; fi
+          ver_arg=""
+          [[ -n "${{ steps.ver.outputs.version }}" ]] && ver_arg="-Dlibdecimal_VERSION_OVERRIDE=${{ steps.ver.outputs.version }}"
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER="$cc" \
             -DCMAKE_CXX_COMPILER="$cxx" \
             -Dlibdecimal_BUILD_TESTS=OFF \
             -Dlibdecimal_BUILD_DOCS=OFF \
+            $ver_arg \
             ${{ matrix.cmake-extra }}
 
       - name: Build
         shell: bash
         run: cmake --build build --config Release --parallel
 
-      - name: Install
+      - name: Package
         shell: bash
+        working-directory: build
         run: |
           set -euxo pipefail
-          prefix="${RUNNER_TEMP}/pkg/libdecimal-${{ steps.ver.outputs.version }}"
-          cmake --install build --config Release --prefix "$prefix"
-          find "$prefix" -type f | sort
+          case "${{ runner.os }}" in
+            Linux)   cpack -G DEB; cpack -G RPM ;;
+            macOS)
+              ver="${{ steps.ver.outputs.version }}"
+              [[ -n "$ver" ]] || ver=$(sed -n 's/.*project(libdecimal VERSION \([0-9.]*\).*/\1/p' "$GITHUB_WORKSPACE/CMakeLists.txt")
+              rm -rf _pkgroot
+              cmake --install . --prefix "$PWD/_pkgroot/usr/local"
+              pkgbuild --root "$PWD/_pkgroot" --identifier com.vargalabs.libdecimal \
+                --version "$ver" --install-location / "libdecimal-${ver}-macOS-x86_64.pkg" ;;
+            Windows) cpack -G NSIS ;;
+          esac
+          ls -la libdecimal-*
 
-      - name: Archive (Linux / macOS)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euxo pipefail
-          name="libdecimal-${{ steps.ver.outputs.version }}-${{ matrix.name }}"
-          tar czf "${name}.tar.gz" -C "${RUNNER_TEMP}/pkg" "libdecimal-${{ steps.ver.outputs.version }}"
-          ls -la "${name}.tar.gz"
-
-      - name: Archive (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $name = "libdecimal-${{ steps.ver.outputs.version }}-${{ matrix.name }}"
-          Compress-Archive -Path "$env:RUNNER_TEMP\pkg\libdecimal-${{ steps.ver.outputs.version }}" -DestinationPath "$name.zip"
-          Get-Item "$name.zip"
-
-      - name: Upload package artifact
+      # One clearly-named artifact per installer (the publish job globs libdecimal-*).
+      - name: Upload .deb installer
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: libdecimal-${{ matrix.name }}
-          path: |
-            libdecimal-*.tar.gz
-            libdecimal-*.zip
+          name: libdecimal-deb-amd64
+          path: build/libdecimal-*.deb
+          if-no-files-found: error
+
+      - name: Upload .rpm installer
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-rpm-x86_64
+          path: build/libdecimal-*.rpm
+          if-no-files-found: error
+
+      - name: Upload .pkg installer
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-macos-pkg-x86_64
+          path: build/libdecimal-*.pkg
+          if-no-files-found: error
+
+      - name: Upload .exe installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-windows-exe-x64
+          path: build/libdecimal-*.exe
           if-no-files-found: error
 
   publish:

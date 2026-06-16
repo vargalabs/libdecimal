@@ -39,6 +39,42 @@ set(bid_f128_sources
     "${f128_dir}/sqrt_tab_t.c"
 )
 
+# ---- Per-platform Intel BID build macros ------------------------------------
+# Intel's BID sources select OS / architecture / compiler from preprocessor
+# macros.  The x86-64 architecture is forced with `efi2` (-> _M_AMD64 -> amd64
+# in float128/architecture.h) on every platform, and the compiler family is
+# auto-detected from _MSC_VER / __GNUC__ (float128/compiler.h), so only the OS
+# token has to be supplied per platform:
+#   * Linux  : LINUX / linux   (unchanged from the original build)
+#   * macOS  : nothing -- op_system.h / bid_conf.h key off __APPLE__ -> darwin
+#   * Windows: WINDOWS (core) / WNT (DPML float128, -> OP_SYSTEM wnt)
+# NOTE: the float128 (DPML) sources only ship an amd64 code path, so macOS must
+# be built for x86_64 (CMAKE_OSX_ARCHITECTURES=x86_64, run under Rosetta on the
+# Apple-Silicon CI runners); native Apple Silicon would need an aarch64 port.
+if(WIN32)
+    set(bid_core_os WINDOWS)
+    set(bid_f128_os WNT)
+    set(bid_f128_cc "")          # _MSC_VER auto-selects msc_cc
+elseif(APPLE)
+    set(bid_core_os "")          # __APPLE__ auto-detected
+    set(bid_f128_os "")          # __APPLE__ -> darwin
+    set(bid_f128_cc "")          # __GNUC__ (clang) auto-selects gnu_cc
+else()
+    set(bid_core_os LINUX)
+    set(bid_f128_os linux)
+    set(bid_f128_cc gcc)
+endif()
+
+# Intel's sources are intentionally warning-noisy; silence them per toolchain.
+# Modern Clang (notably Apple Clang) promotes implicit function/int declarations
+# to hard errors that `-w` does not downgrade, and the DPML sources rely on a few
+# (e.g. raise() without <signal.h>), so disable those diagnostics explicitly.
+if(MSVC)
+    set(bid_warn_flags /w)
+else()
+    set(bid_warn_flags -w -Wno-implicit-function-declaration -Wno-implicit-int)
+endif()
+
 add_library(libbid_core_obj OBJECT ${bid_core_sources})
 target_include_directories(libbid_core_obj PRIVATE
     "${src_dir}"
@@ -46,13 +82,15 @@ target_include_directories(libbid_core_obj PRIVATE
 target_compile_definitions(libbid_core_obj PRIVATE
     USE_COMPILER_F128_TYPE=0
     USE_COMPILER_F80_TYPE=0
-    LINUX
     efi2
     DECIMAL_CALL_BY_REFERENCE=0
     DECIMAL_GLOBAL_ROUNDING=0
     DECIMAL_GLOBAL_EXCEPTION_FLAGS=0
 )
-target_compile_options(libbid_core_obj PRIVATE -w)
+if(bid_core_os)
+    target_compile_definitions(libbid_core_obj PRIVATE ${bid_core_os})
+endif()
+target_compile_options(libbid_core_obj PRIVATE ${bid_warn_flags})
 set_target_properties(libbid_core_obj PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
@@ -66,10 +104,14 @@ target_include_directories(libbid_f128_obj PRIVATE
 target_compile_definitions(libbid_f128_obj PRIVATE
     USE_NATIVE_QUAD_TYPE=0
     efi2
-    linux
-    gcc
 )
-target_compile_options(libbid_f128_obj PRIVATE -w)
+if(bid_f128_os)
+    target_compile_definitions(libbid_f128_obj PRIVATE ${bid_f128_os})
+endif()
+if(bid_f128_cc)
+    target_compile_definitions(libbid_f128_obj PRIVATE ${bid_f128_cc})
+endif()
+target_compile_options(libbid_f128_obj PRIVATE ${bid_warn_flags})
 set_target_properties(libbid_f128_obj PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
