@@ -221,6 +221,23 @@ jobs:
         if: env.SKIP_COMPILE == 'false'
         run: ctest --test-dir build --output-on-failure
 
+      - name: Install
+        if: env.SKIP_COMPILE == 'false'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          prefix="${RUNNER_TEMP}/libdecimal-install"
+          cmake --install build --prefix "$prefix"
+          find "$prefix" -type f | sort
+
+      - name: Upload install artifact
+        if: env.SKIP_COMPILE == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdecimal-install-${{ matrix.os }}-${{ matrix.compiler }}
+          path: ${{ runner.temp }}/libdecimal-install
+          if-no-files-found: error
+
       - name: Record Badge Status
         if: always()
         shell: bash
