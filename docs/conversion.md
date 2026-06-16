@@ -140,12 +140,12 @@ A decimal value can be explicitly converted **to raw BID** or **to raw DPD**, an
     | decimal                                          | `dpd_t<BID_UINT128>`               | supported | Exports DPD from internal BID                  |
     | `dpd_t<BID_UINT128>`                             | decimal                            | supported | Imports DPD via BID                            |
 
-The conversion paths are exercised directly by the test suite across all supported formats. For **`decimal32`** and **`decimal64`**, this includes string construction, floating-point construction, explicit floating conversion, and full **DPD roundtrip** validation. **`decimal128`** is covered with the same guarantees, including string and floating-point construction as well as DPD roundtrip support, ensuring consistent behavior across all widths. In addition to conversion, the library provides full structural decomposition of BID-encoded values into: $(\text{sign},\ \text{coefficient},\ \text{exponent})$ via: **`auto [kind, coefficient, exponent] = math::decompose(x);`**
+The conversion paths are exercised directly by the test suite across all supported formats. For **`decimal32`** and **`decimal64`**, this includes string construction, floating-point construction, explicit floating conversion, and full **DPD roundtrip** validation. **`decimal128`** is covered with the same guarantees, including string and floating-point construction as well as DPD roundtrip support, ensuring consistent behavior across all widths. In addition to conversion, the library provides full structural decomposition of BID-encoded values into: $(\text{sign},\ \text{coefficient},\ \text{exponent})$ via: **`auto [sign, coefficient, exponent] = math::decompose(x);`**
 
 This interface is implemented uniformly across **`decimal32`**, **`decimal64`**, and **`decimal128`**, and operates over the complete IEEE 754 decimal domain. All value classes are supported, including finite values (both positive and negative), signed zero, infinities (`±inf`), and NaN.
 
 For finite values, the decomposition follows: $x = (-1)^s \cdot C \cdot 10^e$ where:
-* `kind` encodes the sign and classification
+* `sign` is a `bool` encoding the sign bit
 * `coefficient` is the integer significand
 * `exponent` is the unbiased decimal exponent
 
