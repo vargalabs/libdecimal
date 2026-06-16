@@ -2,7 +2,9 @@
  * Copyright © 2017–2025 VargaLABS, Toronto, ON, Canada 🇨🇦 */
  
 #pragma once
-#include <stdfloat>
+#if __has_include(<stdfloat>)
+#include <stdfloat>  // C++23; absent from Apple Clang's libc++. Types are unused.
+#endif
 #include <format>
 #include <iostream>
 #include <algorithm>
