@@ -56,15 +56,6 @@ If you’re building:
 
 
 
-## Development
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Debug -Dlibdecimal_BUILD_TESTS=ON -S . -B build # configure (debug + tests)
-cmake --build build --parallel                                           # build everything
-cd build && ctest --output-on-failure                                    # run tests
-cmake --build build --target docs_build                                  # install mkdocs locally
-cmake --build build --target docs_serve                                  # run webserver @ http://127.0.0.1:9000/
-```
 
 ## Installation
 ```bash
@@ -82,6 +73,67 @@ find_package(libdecimal REQUIRED)
 add_executable(app main.cpp)
 target_link_libraries(app PRIVATE libdecimal::libdecimal)
 ```
+
+## Example
+```cpp
+#include <decimal/bid.hpp>
+#include <iostream>
+
+int main() {
+    using namespace math::literals;
+
+    math::decimal_t<uint64_t> price(12345, -2);  // 123.45
+    math::decimal_t<uint64_t> fee_rate = 0.0025_dec; // 0.25 %
+
+    auto fee = price * fee_rate;
+    auto total = price + fee;
+
+    std::cout << "BID example\n";
+    std::cout << "  price:     " << price << '\n';
+    std::cout << "  fee_rate:  " << fee_rate << '\n';
+    std::cout << "  fee:       " << fee << '\n';
+    std::cout << "  total:     " << total << '\n';
+
+    // Transcendentals are available on the BID path.
+    auto exp_value = math::exp(price);
+    std::cout << "  exp(price): " << exp_value << '\n';
+
+    return 0;
+}
+
+```
+
+
+The `examples/` directory contains standalone programs demonstrating each decimal representation:
+
+| File | Representation |
+|------|----------------|
+| `examples/bid_example.cpp` | IEEE 754 BID via Intel LIBBID |
+| `examples/fixed_example.cpp` | Compile-time fixed-point |
+| `examples/bcd_example.cpp` | Binary-coded decimal |
+| `examples/scaled_example.cpp` | Lightweight scaled-integer pair |
+
+Build and run them with:
+
+```bash
+cmake -S . -B build -Dlibdecimal_BUILD_EXAMPLES=ON
+cmake --build build --parallel
+./build/examples/bid_example
+./build/examples/fixed_example
+./build/examples/bcd_example
+./build/examples/scaled_example
+```
+
+## Development
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug -Dlibdecimal_BUILD_TESTS=ON -S . -B build # configure (debug + tests)
+cmake --build build --parallel                                           # build everything
+cd build && ctest --output-on-failure                                    # run tests
+cmake --build build --target docs_build                                  # install mkdocs locally
+cmake --build build --target docs_serve                                  # run webserver @ http://127.0.0.1:9000/
+```
+
 
 ## Attribution
 **LIBDECIMAL** builds on Intel’s LIBBID implementation of IEEE 754 decimal arithmetic. **The heavy lifting** — the arithmetic itself — comes from the work **of Marius Cornea, John Harrison, Cristina Anderson, and Evgeny Gvozdev**. **The** underlying **model** traces back **to Mike Cowlishaw** and the IEEE 754 standard.

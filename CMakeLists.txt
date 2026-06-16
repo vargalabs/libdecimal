@@ -26,7 +26,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(libdecimal_BUILD_TESTS "Build tests" ${BUILD_TESTING})
 option(libdecimal_BUILD_DOCS  "Enable MkDocs documentation targets" ON)
-option(libdecimal_BUILD_SHARED_LIBS "Build Intel LIBBID as a shared library" OFF)
+option(libdecimal_BUILD_EXAMPLES "Build example programs" OFF)
 
 set(git_commit_hash "unknown")
 set(git_tag "")
@@ -117,6 +117,12 @@ if(libdecimal_BUILD_BENCHMARKS)
     add_benchmark(ops-fee)
     add_benchmark(encode-decode)
     add_benchmark(mixed-ops)
+endif()
+# ------------------------------------------------------------------------------
+# Examples
+# ------------------------------------------------------------------------------
+if(libdecimal_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
 # ------------------------------------------------------------------------------
 # MkDocs Documentation Targets
