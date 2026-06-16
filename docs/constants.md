@@ -12,7 +12,7 @@ All constants are compile-time initialized via string → `decimal_t<T>` convers
     // composability
     auto circumference = decimal::two_pi * r;
     auto angle_rad     = deg * decimal::deg_to_rad;
-    auto exp_growth    = decimal::e.pow(t);
+    auto exp_growth    = math::exp(t);  // e^t; math::pow is not yet exposed
     ```
 === ":material-decimal-decrease:{.icon} decimal32"
 
