@@ -79,6 +79,7 @@ add_library(${libname} STATIC
     $<TARGET_OBJECTS:libbid_core_obj>
     $<TARGET_OBJECTS:libbid_f128_obj>
 )
+set_target_properties(${libname} PROPERTIES OUTPUT_NAME bid_static)
 add_library(libdecimal::${libname} ALIAS ${libname})
 
 target_include_directories(${libname}
