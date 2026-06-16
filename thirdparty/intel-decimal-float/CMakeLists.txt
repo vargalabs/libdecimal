@@ -75,11 +75,26 @@ set_target_properties(libbid_f128_obj PROPERTIES
     C_STANDARD_REQUIRED ON
 )
 
-add_library(${libname} STATIC
-    $<TARGET_OBJECTS:libbid_core_obj>
-    $<TARGET_OBJECTS:libbid_f128_obj>
-)
-set_target_properties(${libname} PROPERTIES OUTPUT_NAME bid_static)
+# Object libraries must be PIC when they are linked into a shared library.
+if(libdecimal_BUILD_SHARED_LIBS)
+    set_target_properties(libbid_core_obj libbid_f128_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
+# Target name stays libbid_static for backward compatibility; the on-disk name
+# changes based on the build mode (libbid_static.a vs libbid.so).
+if(libdecimal_BUILD_SHARED_LIBS)
+    add_library(${libname} SHARED
+        $<TARGET_OBJECTS:libbid_core_obj>
+        $<TARGET_OBJECTS:libbid_f128_obj>
+    )
+    set_target_properties(${libname} PROPERTIES OUTPUT_NAME bid)
+else()
+    add_library(${libname} STATIC
+        $<TARGET_OBJECTS:libbid_core_obj>
+        $<TARGET_OBJECTS:libbid_f128_obj>
+    )
+    set_target_properties(${libname} PROPERTIES OUTPUT_NAME bid_static)
+endif()
 add_library(libdecimal::${libname} ALIAS ${libname})
 
 target_include_directories(${libname}
