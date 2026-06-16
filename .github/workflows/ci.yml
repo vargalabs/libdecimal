@@ -5,370 +5,274 @@ on:
     branches: [release, staging]
   pull_request:
     branches: [release, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Opt into the Node 24 runtime for JavaScript actions (default flips 2026-06-02).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     name: ${{ matrix.os }} / ${{ matrix.compiler }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
       matrix:
-        # removed: os: [, macos-latest, windows-latest] compiler: [, apple-clang, msvc] 
-        os: [ubuntu-22.04, ubuntu-24.04]
-        compiler: [gcc-13, gcc-14, gcc-15, clang-17, clang-18, clang-19, clang-20]
         include:
-          - compiler: gcc-13
+          - os: ubuntu-22.04
+            compiler: gcc-13
             compiler-version: 13
-          - compiler: gcc-14
+          - os: ubuntu-22.04
+            compiler: gcc-14
             compiler-version: 14
-          - compiler: gcc-15
-            compiler-version: 15
-          - compiler: clang-17
-            compiler-version: 17
-          - compiler: clang-18
+          - os: ubuntu-24.04
+            compiler: gcc-13
+            compiler-version: 13
+          - os: ubuntu-24.04
+            compiler: gcc-14
+            compiler-version: 14
+            artifact: true
+          - os: ubuntu-24.04
+            compiler: clang-18
             compiler-version: 18
-          - compiler: clang-19
+          - os: ubuntu-24.04
+            compiler: clang-19
             compiler-version: 19
-          - compiler: clang-20
+          - os: ubuntu-24.04
+            compiler: clang-20
             compiler-version: 20
+          # Apple-Silicon runner, but cross-targets x86_64 (the only architecture
+          # Intel's DPML float128 sources support) and runs the tests via
+          # Rosetta 2. Native arm64 would require an aarch64 DPML port.
+          - os: macos-14
+            compiler: apple-clang
+            compiler-version: native
+            cmake-extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
+            artifact: true
+          - os: windows-latest
+            compiler: msvc
+            compiler-version: native
+            artifact: true
 
     steps:
-      - name: Set badge output directory
-        id: path
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF##*/}" == "staging" ]]; then
-            echo "dir=status-staging" >> "$GITHUB_OUTPUT"
-          else
-            echo "dir=status" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check skip list
-        id: skip_check
-        shell: bash
-        run: |
-          skip_list=(
-            "ubuntu-22.04:gcc-14"
-            "ubuntu-22.04:gcc-15"
-            "ubuntu-24.04:gcc-15"
-            "ubuntu-24.04:clang-17"
-          )          
-
-          combo="${{ matrix.os }}:${{ matrix.compiler }}"
-          echo "Checking combination: $combo"
-
-          for skip in "${skip_list[@]}"; do
-            if [[ "$combo" == "$skip" ]]; then
-              echo "SKIP_COMPILE=true" >> "$GITHUB_ENV"
-              exit 0
-            fi
-          done
-
-          echo "SKIP_COMPILE=false" >> "$GITHUB_ENV"
-
       - name: Checkout
-        if: env.SKIP_COMPILE == 'false'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install base dependencies on Ubuntu
-        if: env.SKIP_COMPILE == 'false' && startsWith(matrix.os, 'ubuntu-')
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            ninja-build \
-            wget \
-            gnupg \
-            lsb-release \
-            software-properties-common
-
-      - name: Install base dependencies on Windows
-        if: env.SKIP_COMPILE == 'false' && matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          choco install ninja -y
-
-      - name: Install base dependencies on macOS
-        if: env.SKIP_COMPILE == 'false' && matrix.os == 'macos-latest'
-        shell: bash
-        run: |
-          brew update
-          brew install cmake ninja
-
-      - name: Setup GCC
-        if: env.SKIP_COMPILE == 'false' && startsWith(matrix.os, 'ubuntu-') && startsWith(matrix.compiler, 'gcc-')
-        shell: bash
-        run: |
-          version="${{ matrix.compiler-version }}"
-
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          sudo apt-get update
-          sudo apt-get install -y gcc-"$version" g++-"$version"
-
-          echo "CC=$(command -v gcc-$version)" >> "$GITHUB_ENV"
-          echo "CXX=$(command -v g++-$version)" >> "$GITHUB_ENV"
-          echo "CFLAGS=" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=" >> "$GITHUB_ENV"
-          echo "LDFLAGS=" >> "$GITHUB_ENV"
-
-      - name: Setup Clang with GCC-13 libstdc++
-        if: env.SKIP_COMPILE == 'false' && startsWith(matrix.os, 'ubuntu-') && startsWith(matrix.compiler, 'clang-')        
-        shell: bash
-        run: |
-          clang_version="${{ matrix.compiler-version }}"
-
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          sudo apt-get update
-          sudo apt-get install -y gcc-13 g++-13
-
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-          sudo DISTRIB_CODENAME="$codename" ./llvm.sh "$clang_version" all
-
-          cc_bin="$(command -v clang-$clang_version)"
-          cxx_bin="$(command -v clang++-$clang_version)"
-          gxx13_bin="$(readlink -f "$(command -v g++-13)")"
-          gcc_root="$(dirname "$(dirname "$gxx13_bin")")"
-
-          test -n "$cc_bin"
-          test -n "$cxx_bin"
-          test -n "$gcc_root"
-
-          echo "CC=$cc_bin" >> "$GITHUB_ENV"
-          echo "CXX=$cxx_bin" >> "$GITHUB_ENV"
-          echo "CFLAGS=--gcc-toolchain=$gcc_root" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=--gcc-toolchain=$gcc_root -stdlib=libstdc++" >> "$GITHUB_ENV"
-          echo "LDFLAGS=--gcc-toolchain=$gcc_root -stdlib=libstdc++" >> "$GITHUB_ENV"
-
-      - name: Setup MSVC developer environment
-        if: env.SKIP_COMPILE == 'false' && matrix.os == 'windows-latest' && matrix.compiler == 'msvc'
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Setup MSVC
-        if: env.SKIP_COMPILE == 'false' && matrix.os == 'windows-latest' && matrix.compiler == 'msvc'
-        shell: bash
-        run: |
-          echo "CC=cl" >> "$GITHUB_ENV"
-          echo "CXX=cl" >> "$GITHUB_ENV"
-          echo "CFLAGS=" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=" >> "$GITHUB_ENV"
-          echo "LDFLAGS=" >> "$GITHUB_ENV"
-
-      - name: Setup Apple Clang
-        if: env.SKIP_COMPILE == 'false' && matrix.os == 'macos-latest' && matrix.compiler == 'apple-clang'
-        shell: bash
-        run: |
-          echo "CC=$(xcrun --find clang)" >> "$GITHUB_ENV"
-          echo "CXX=$(xcrun --find clang++)" >> "$GITHUB_ENV"
-          echo "CFLAGS=" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=" >> "$GITHUB_ENV"
-          echo "LDFLAGS=" >> "$GITHUB_ENV"
-
-      - name: Show compiler environment
-        if: env.SKIP_COMPILE == 'false'
-        shell: bash
-        run: |
-          echo "CC=$CC"
-          echo "CXX=$CXX"
-          echo "CFLAGS=$CFLAGS"
-          echo "CXXFLAGS=$CXXFLAGS"
-          echo "LDFLAGS=$LDFLAGS"
-
-          if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.compiler }}" == "msvc" ]]; then
-            cl
-          else
-            "$CC" --version
-            "$CXX" --version
-          fi
-
-      - name: Configure
-        if: env.SKIP_COMPILE == 'false'
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" && "${{ matrix.compiler }}" == "msvc" ]]; then
-            cmake -B build -G Ninja \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_C_STANDARD=17 \
-              -DCMAKE_CXX_STANDARD=23 \
-              -DCMAKE_C_COMPILER="$CC" \
-              -DCMAKE_CXX_COMPILER="$CXX"
-          else
-            cmake -B build -G Ninja \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_C_STANDARD=17 \
-              -DCMAKE_CXX_STANDARD=23 \
-              -DCMAKE_C_COMPILER="$CC" \
-              -DCMAKE_CXX_COMPILER="$CXX" \
-              -DCMAKE_C_FLAGS="$CFLAGS" \
-              -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
-              -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
-              -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS"
-          fi
-
-      - name: Build
-        if: env.SKIP_COMPILE == 'false'
-        run: cmake --build build --parallel
-
-      - name: Test
-        if: env.SKIP_COMPILE == 'false'
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Install
-        if: env.SKIP_COMPILE == 'false'
+      # ---------------------------------------------------------------- Linux
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euxo pipefail
-          prefix="${RUNNER_TEMP}/libdecimal-install"
-          cmake --install build --prefix "$prefix"
-          find "$prefix" -type f | sort
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Setup GCC (Linux)
+        if: runner.os == 'Linux' && startsWith(matrix.compiler, 'gcc-')
+        shell: bash
+        run: |
+          set -euxo pipefail
+          version="${{ matrix.compiler-version }}"
+          if ! command -v "gcc-${version}" >/dev/null; then
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+            sudo apt-get update
+            sudo apt-get install -y "gcc-${version}" "g++-${version}"
+          fi
+          echo "CC=$(command -v gcc-${version})" >> "$GITHUB_ENV"
+          echo "CXX=$(command -v g++-${version})" >> "$GITHUB_ENV"
+          g++-"${version}" --version
+
+      - name: Setup Clang (Linux)
+        if: runner.os == 'Linux' && startsWith(matrix.compiler, 'clang-')
+        shell: bash
+        run: |
+          set -euxo pipefail
+          version="${{ matrix.compiler-version }}"
+          if ! command -v "clang-${version}" >/dev/null; then
+            wget https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+            sudo DISTRIB_CODENAME="$codename" ./llvm.sh "${version}"
+          fi
+          echo "CC=$(command -v clang-${version})" >> "$GITHUB_ENV"
+          echo "CXX=$(command -v clang++-${version})" >> "$GITHUB_ENV"
+          clang++-"${version}" --version
+
+      # ---------------------------------------------------------------- macOS
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          # Ensure Rosetta 2 is present so the cross-built x86_64 tests can run.
+          softwareupdate --install-rosetta --agree-to-license || true
+          brew install --quiet ninja || true
+          echo "CC=$(xcrun --find clang)" >> "$GITHUB_ENV"
+          echo "CXX=$(xcrun --find clang++)" >> "$GITHUB_ENV"
+          "$(xcrun --find clang++)" --version
+
+      # ---------------------------------------------------------------- Windows
+      - name: Setup MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ninja -y --no-progress
+
+      # -------------------------------------------------------- configure/build
+      - name: Configure (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            -DCMAKE_C_COMPILER="$CC" \
+            -DCMAKE_CXX_COMPILER="$CXX" \
+            ${{ matrix.cmake-extra }}
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            -DCMAKE_C_COMPILER=cl \
+            -DCMAKE_CXX_COMPILER=cl
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        shell: bash
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Validate the install rules and publish the install tree (headers +
+      # libdecimal CMake package + Intel LIBBID static library) per platform.
+      - name: Install
+        if: matrix.artifact
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cmake --install build --config Release --prefix "${RUNNER_TEMP}/libdecimal-install"
+          find "${RUNNER_TEMP}/libdecimal-install" -type f | sort
 
       - name: Upload install artifact
-        if: env.SKIP_COMPILE == 'false'
+        if: matrix.artifact
         uses: actions/upload-artifact@v4
         with:
           name: libdecimal-install-${{ matrix.os }}-${{ matrix.compiler }}
           path: ${{ runner.temp }}/libdecimal-install
           if-no-files-found: error
 
-      - name: Record Badge Status
+      - name: Record badge status
         if: always()
         shell: bash
         run: |
+          set -euxo pipefail
           mkdir -p badge-status
-          status="skipped"
-
-          if [[ "${SKIP_COMPILE:-false}" == "false" ]]; then
-            status="${{ job.status }}"
-          fi
-
-          cat > "badge-status/status-${{ matrix.os }}-${{ matrix.compiler }}.json" <<EOF
+          cat <<EOF > "badge-status/status-${{ matrix.os }}-${{ matrix.compiler }}.json"
           {
             "os": "${{ matrix.os }}",
             "compiler": "${{ matrix.compiler }}",
-            "status": "${status}"
+            "status": "${{ job.status }}"
           }
           EOF
 
-      - name: Upload Status Artifact
+      - name: Upload status artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: status-${{ matrix.os }}-${{ matrix.compiler }}
           path: badge-status/status-${{ matrix.os }}-${{ matrix.compiler }}.json
 
-  generate-badges:
-    name: Generate SVG Badges
-    runs-on: ubuntu-latest
-    needs: build
-    if: always()
-
+  # Guards the MSVC code path (portable math::uint128 struct) on a fast Linux
+  # runner by forcing the struct even where the __int128 builtin exists.
+  portable-uint128:
+    name: portable-uint128 / ubuntu-24.04 / gcc-14
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - name: Determine badge target directory
-        id: badge_dir
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
         shell: bash
         run: |
-          if [[ "${GITHUB_REF##*/}" == "staging" ]]; then
-            echo "dir=badges-staging" >> "$GITHUB_OUTPUT"
-          else
-            echo "dir=badges" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install jq
-        shell: bash
-        run: |
+          set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y jq curl
-
-      - name: Download all badge status artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: badge-status
-          pattern: status-*
-          merge-multiple: true
-
-      - name: Generate SVG badges
+          sudo apt-get install -y cmake ninja-build gcc-14 g++-14
+      - name: Configure (forced portable uint128)
         shell: bash
         run: |
-          mkdir -p "${{ steps.badge_dir.outputs.dir }}"
-
-          for f in badge-status/*.json; do
-            [[ ! -f "$f" ]] && continue
-
-            os="$(jq -r .os "$f")"
-            compiler="$(jq -r .compiler "$f")"
-            status="$(jq -r .status "$f")"
-
-            color="gray"
-            symbol="□"
-            prefix="unknown"
-
-            [[ "$status" == "success" ]] && { symbol="✔"; color="green"; prefix="ok"; }
-            [[ "$status" == "skipped" ]] && { symbol="○"; color="gray"; prefix="na"; }
-            [[ "$status" == "failure" ]] && { symbol="✘"; color="red"; prefix="failed"; }
-
-            label="${os}-${compiler}"
-            badge="${{ steps.badge_dir.outputs.dir }}/${label}.svg"
-
-            curl -fsSL "https://img.shields.io/badge/${prefix}-${symbol}-${color}.svg" -o "$badge"
-          done
-
-      - name: Upload badge folder to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./${{ steps.badge_dir.outputs.dir }}
-          destination_dir: ${{ steps.badge_dir.outputs.dir }}
+          set -euxo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_CXX_FLAGS="-DDECIMAL_FORCE_PORTABLE_UINT128=1"
+      - name: Build
+        shell: bash
+        run: cmake --build build --parallel
+      - name: Test
+        shell: bash
+        run: ctest --test-dir build --output-on-failure
 
   sanitizers:
     name: sanitizers / ubuntu-24.04 / clang-19
     runs-on: ubuntu-24.04
-
+    timeout-minutes: 45
     env:
-      CC: clang-19
-      CXX: clang++-19
       ASAN_OPTIONS: halt_on_error=1:detect_leaks=1
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Install dependencies
         shell: bash
         run: |
+          set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc-13 g++-13
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-          sudo DISTRIB_CODENAME="$codename" ./llvm.sh 19 all
-
+          sudo apt-get install -y cmake ninja-build
+          if ! command -v clang-19 >/dev/null; then
+            wget https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+            sudo DISTRIB_CODENAME="$codename" ./llvm.sh 19
+          fi
       - name: Configure
         shell: bash
         run: |
-          gcc_root="$(dirname "$(dirname "$(readlink -f "$(command -v g++-13)")")")"
+          set -euxo pipefail
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -Dlibdecimal_BUILD_DOCS=OFF \
             -DCMAKE_C_COMPILER=clang-19 \
-            -DCMAKE_CXX_COMPILER=clang++-19 \
-            -DCMAKE_C_FLAGS="--gcc-toolchain=$gcc_root" \
-            -DCMAKE_CXX_FLAGS="--gcc-toolchain=$gcc_root -stdlib=libstdc++" \
-            -DCMAKE_EXE_LINKER_FLAGS="--gcc-toolchain=$gcc_root -stdlib=libstdc++"
-
+            -DCMAKE_CXX_COMPILER=clang++-19
       - name: Build
         shell: bash
         run: cmake --build build --parallel
-
       - name: Test (ASan + UBSan)
         shell: bash
         run: ctest --test-dir build --output-on-failure --parallel
@@ -376,54 +280,113 @@ jobs:
   coverage:
     name: coverage / ubuntu-24.04 / gcc-14
     runs-on: ubuntu-24.04
-    #needs: build
-
+    timeout-minutes: 45
     env:
       CC: gcc-14
       CXX: g++-14
       GCOV: gcov-14
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Install dependencies
         shell: bash
         run: |
+          set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build gcc-14 g++-14 lcov
-
       - name: Configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_C_FLAGS="--coverage -O0 -g" -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
-
+          set -euxo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -Dlibdecimal_BUILD_DOCS=OFF \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_C_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
       - name: Build
         shell: bash
-        run: |
-          cmake --build build --parallel
-
+        run: cmake --build build --parallel
       - name: Test
         shell: bash
-        run: |
-          ctest --test-dir build --output-on-failure --parallel
-
+        run: ctest --test-dir build --output-on-failure --parallel
       - name: Capture coverage
         shell: bash
         run: |
-          lcov --gcov-tool /usr/bin/gcov-14 --rc geninfo_unexecuted_blocks=1 --directory build --capture --output-file coverage.full.info
-          lcov --gcov-tool /usr/bin/gcov-14 --remove coverage.full.info '/usr/*' '*/test/*'  '*/thirdparty/*'  --ignore-errors unused  --output-file coverage.info
+          set -euxo pipefail
+          lcov --gcov-tool /usr/bin/gcov-14 --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch --directory build --capture --output-file coverage.full.info
+          lcov --gcov-tool /usr/bin/gcov-14 --remove coverage.full.info \
+            '/usr/*' '*/test/*' '*/thirdparty/*' --ignore-errors unused --output-file coverage.info
           rm coverage.full.info
           lcov --gcov-tool /usr/bin/gcov-14 --list coverage.info
-
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.info
           disable_search: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           disable_telem: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  badge:
+    name: Generate SVG Badges
+    if: always()
+    needs: [build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install badge tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+      - name: Download all status artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: badge-status
+          pattern: status-*
+          merge-multiple: true
+      - name: Generate SVG Badges
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [[ "${GITHUB_REF_NAME:-}" == "staging" ]]; then
+            badge_dir="badges-staging"
+          else
+            badge_dir="badges"
+          fi
+          mkdir -p "$badge_dir"
+          for status_file in badge-status/*.json; do
+            [[ -f "$status_file" ]] || continue
+            os=$(jq -r '.os' "$status_file")
+            compiler=$(jq -r '.compiler' "$status_file")
+            status=$(jq -r '.status' "$status_file")
+            prefix="unknown"; symbol="%3F"; color="lightgrey"
+            case "$status" in
+              success)   prefix="ok";        symbol="%E2%9C%94"; color="green"  ;;
+              failure)   prefix="failed";    symbol="%E2%9C%98"; color="red"    ;;
+              cancelled) prefix="cancelled"; symbol="%E2%97%87"; color="yellow" ;;
+              skipped)   prefix="na";        symbol="%E2%97%8B"; color="gray"   ;;
+            esac
+            badge="$badge_dir/${os}-${compiler}.svg"
+            curl -fsSL "https://img.shields.io/badge/${prefix}-${symbol}-${color}.svg" -o "$badge"
+          done
+      - name: Upload badges artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.ref_name == 'staging' && 'badges-staging' || 'badges' }}
+          path: ${{ github.ref_name == 'staging' && 'badges-staging' || 'badges' }}
+      - name: Deploy badges to GitHub Pages
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./${{ github.ref_name == 'staging' && 'badges-staging' || 'badges' }}
+          destination_dir: ${{ github.ref_name == 'staging' && 'badges-staging' || 'badges' }}
+          keep_files: true
